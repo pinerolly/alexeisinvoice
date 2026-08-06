@@ -1,0 +1,158 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Client.Name}} - Client History</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        padding: 20px;
+      }
+      .page {
+        max-width: 1000px;
+        margin: auto;
+      }
+      .panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 20px;
+        color: var(--primary);
+        margin-top: 0;
+      }
+      .contact-info p {
+        margin: 4px 0;
+        font-size: 14px;
+        color: #555;
+      }
+      a.back-link {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 14px;
+      }
+      a.back-link:hover {
+        text-decoration: underline;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th {
+        background: var(--primary);
+        color: #fff;
+        text-align: left;
+        padding: 10px 12px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      tbody td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+      }
+      tbody tr:hover {
+        background: var(--light-bg);
+      }
+      tbody td.num {
+        text-align: right;
+        font-weight: 600;
+      }
+      a.invoice-link {
+        color: var(--accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a.invoice-link:hover {
+        text-decoration: underline;
+      }
+      .empty {
+        color: #777;
+        font-size: 14px;
+        padding: 20px 0;
+        text-align: center;
+      }
+      @media (max-width: 700px) {
+        body {
+          padding: 12px;
+        }
+        .panel {
+          padding: 16px;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {{template "nav" .}}
+
+    <div class="page">
+      <div class="panel">
+        <a class="back-link" href="/clients">&larr; All Clients</a>
+        <h1 style="margin-top: 10px">{{.Client.Name}}</h1>
+        <div class="contact-info">
+          {{if .Client.Phone}}
+          <p>Phone: {{.Client.Phone}}</p>
+          {{end}} {{if .Client.Email}}
+          <p>Email: {{.Client.Email}}</p>
+          {{end}}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h1>Invoice History</h1>
+        {{if .Invoices}}
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th style="text-align: right">Jobs</th>
+              <th style="text-align: right">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Invoices}}
+            <tr>
+              <td>{{formatDate .InvoiceDate}}</td>
+              <td class="num">{{.JobCount}}</td>
+              <td class="num">{{money .Total}}</td>
+              <td>
+                <a class="invoice-link" href="/invoices/{{.ID}}/view">View</a>
+                &nbsp;|&nbsp;
+                <a class="invoice-link" href="/invoices/{{.ID}}/edit">Edit</a>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="empty">No invoices recorded for this client yet.</div>
+        {{end}}
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+{{define "nav"}}
+<style>
+  .topnav {
+    max-width: 1400px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1c3d5a;
+    padding: 12px 20px;
+    border-radius: 8px;
+  }
+  .topnav .brand {
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+  }
+  .topnav .links {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topnav a {
+    color: #cfe3f0;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .topnav a:hover {
+    color: #fff;
+  }
+  .topnav form {
+    margin: 0;
+  }
+  .topnav button.logout-btn {
+    background: #2e86ab;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  @media (max-width: 600px) {
+    .topnav {
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px;
+    }
+    .topnav .links {
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  }
+</style>
+<div class="topnav">
+  <span class="brand">ELECTROCLIMA PRO SERVICES</span>
+  <div class="links">
+    <a href="/">New Invoice</a>
+    <a href="/clients">Clients</a>
+    <form method="POST" action="/logout">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+      <button type="submit" class="logout-btn">Log out</button>
+    </form>
+  </div>
+</div>
+{{end}}

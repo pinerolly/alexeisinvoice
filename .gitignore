@@ -1,0 +1,8 @@
+goapp/invoiceapp.exe
+goapp/invoice-data.json
+goapp/invoices.db
+goapp/*.db
+goapp/.env
+goapp/invoiceapp-linux-amd64
+.env
+*.exe

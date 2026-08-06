@@ -6,14 +6,20 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/term"
 )
 
 //go:embed templates/*.html
@@ -30,13 +36,16 @@ type Job struct {
 
 // InvoiceData holds all editable fields of the invoice.
 type InvoiceData struct {
-	InvoiceDate string `json:"invoiceDate"` // yyyy-mm-dd
-	ClientName  string `json:"clientName"`
-	Location    string `json:"location"`
-	TimeIn      string `json:"timeIn"` // HH:MM 24h
-	TimeOut     string `json:"timeOut"`
-	Jobs        []Job  `json:"jobs"`
-	NextJobID   int    `json:"nextJobId"`
+	InvoiceDate      string `json:"invoiceDate"` // yyyy-mm-dd
+	ClientName       string `json:"clientName"`
+	Phone            string `json:"phone"`
+	Email            string `json:"email"`
+	Location         string `json:"location"`
+	TimeIn           string `json:"timeIn"` // HH:MM 24h
+	TimeOut          string `json:"timeOut"`
+	Jobs             []Job  `json:"jobs"`
+	NextJobID        int    `json:"nextJobId"`
+	CurrentInvoiceID int64  `json:"currentInvoiceId"` // 0 = new/unsaved draft
 }
 
 var (
@@ -44,34 +53,23 @@ var (
 	data InvoiceData
 )
 
-func defaultData() InvoiceData {
+func blankInvoice() InvoiceData {
 	return InvoiceData{
-		InvoiceDate: "2026-07-18",
-		ClientName:  "",
-		Location:    "7820 NE 1st Ave",
-		TimeIn:      "10:00",
-		TimeOut:     "13:30",
-		Jobs: []Job{
-			{
-				ID: 1,
-				Description: "The A/C unit is working properly, but the return duct was too small, restricting proper airflow and cooling.\n\n" +
-					"Installed a new 14\" x 14\" return grille connected to a 12\" duct, tied into the unit's return line. System tested and confirmed working correctly.",
-				Price: 500,
-			},
-		},
-		NextJobID: 2,
+		InvoiceDate: time.Now().Format("2006-01-02"),
+		Jobs:        []Job{{ID: 1, Description: "", Price: 0}},
+		NextJobID:   2,
 	}
 }
 
 func loadData() {
 	b, err := os.ReadFile(dataFile)
 	if err != nil {
-		data = defaultData()
+		data = blankInvoice()
 		return
 	}
 	var d InvoiceData
 	if err := json.Unmarshal(b, &d); err != nil {
-		data = defaultData()
+		data = blankInvoice()
 		return
 	}
 	data = d
@@ -143,6 +141,30 @@ func slugify(s string) string {
 	return strings.Join(strings.Fields(s), "_")
 }
 
+// loadDotEnv reads KEY=VALUE pairs from a .env file next to the executable,
+// if present. Existing environment variables always take precedence.
+func loadDotEnv(path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return // .env is optional
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.Trim(strings.TrimSpace(val), `"'`)
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, val)
+		}
+	}
+}
+
 var funcMap = template.FuncMap{
 	"formatDate": formatDateDisplay,
 	"formatTime": formatTimeDisplay,
@@ -152,54 +174,44 @@ var funcMap = template.FuncMap{
 }
 
 func mustTemplate(name string) *template.Template {
-	return template.Must(template.New(name).Funcs(funcMap).ParseFS(templateFS, "templates/"+name))
+	return template.Must(template.New(name).Funcs(funcMap).ParseFS(templateFS, "templates/"+name, "templates/partials.html"))
 }
 
 // ---- Handlers ----
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
+// currentCSRFToken returns the CSRF token for the caller's session, used to
+// populate hidden form fields on authenticated pages.
+func currentCSRFToken(r *http.Request) string {
+	_, s := getSession(r)
+	if s == nil {
+		return ""
 	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if err := mustTemplate("edit.html").Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return s.csrfToken
 }
 
-func printHandler(w http.ResponseWriter, r *http.Request) {
+// EditPageView is the template data for the main editor page.
+type EditPageView struct {
+	InvoiceData
+	CSRFToken string
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
-	defer mu.Unlock()
-	view := struct {
-		InvoiceData
-		Title string
-	}{data, slugify(data.ClientName) + "_" + data.InvoiceDate}
-	if err := mustTemplate("print.html").Execute(w, view); err != nil {
+	view := EditPageView{InvoiceData: data, CSRFToken: currentCSRFToken(r)}
+	mu.Unlock()
+	if err := mustTemplate("edit.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-
 	mu.Lock()
 	defer mu.Unlock()
 
 	data.InvoiceDate = r.FormValue("invDate")
 	data.ClientName = r.FormValue("clientName")
+	data.Phone = r.FormValue("phone")
+	data.Email = r.FormValue("email")
 	data.Location = r.FormValue("location")
 	data.TimeIn = r.FormValue("timeIn")
 	data.TimeOut = r.FormValue("timeOut")
@@ -248,20 +260,31 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if action == "print" {
-		http.Redirect(w, r, "/print", http.StatusSeeOther)
+		clientID, err := findOrCreateClient(data.ClientName, data.Phone, data.Email)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		invoiceID, err := saveInvoiceRecord(data.CurrentInvoiceID, clientID, data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		data = blankInvoice()
+		if err := saveData(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view", invoiceID), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func resetHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	mu.Lock()
 	defer mu.Unlock()
-	data = defaultData()
+	data = blankInvoice()
 	if err := saveData(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -269,14 +292,221 @@ func resetHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// ClientsListView is the template data for the clients list page.
+type ClientsListView struct {
+	Clients   []ClientSummary
+	Search    string
+	CSRFToken string
+}
+
+func clientsListHandler(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("q")
+	clients, err := listClients(search)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r)}
+	if err := mustTemplate("clients_list.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// ClientDetailView is the template data for a single client's history page.
+type ClientDetailView struct {
+	Client    Client
+	Invoices  []InvoiceSummary
+	CSRFToken string
+}
+
+func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	client, err := getClient(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	invoices, err := getClientInvoices(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r)}
+	if err := mustTemplate("client_detail.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// InvoiceViewPage is the template data for the read-only historical invoice page.
+type InvoiceViewPage struct {
+	InvoiceData
+	InvoiceID  int64
+	ClientID   int64
+	Title      string
+	CSRFToken  string
+	EmailSent  bool
+	EmailError string
+}
+
+func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	view := InvoiceViewPage{
+		InvoiceData: inv,
+		InvoiceID:   id,
+		ClientID:    client.ID,
+		Title:       clientTitle(client.Name, inv.InvoiceDate),
+		CSRFToken:   currentCSRFToken(r),
+		EmailSent:   r.URL.Query().Get("emailed") == "1",
+		EmailError:  r.URL.Query().Get("emailerror"),
+	}
+	if err := mustTemplate("invoice_view.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// invoiceDownloadHandler streams the invoice as a downloadable PDF.
+func invoiceDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	title := clientTitle(client.Name, inv.InvoiceDate)
+	pdfBytes, err := generateInvoicePDF(inv, client, title)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+invoiceFilename(title)+`"`)
+	w.Write(pdfBytes)
+}
+
+// invoiceEmailHandler generates the invoice PDF and emails it to the address
+// submitted in the form, then redirects back to the invoice view page.
+func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	to := strings.TrimSpace(r.FormValue("to"))
+	redirectWithError := func(msg string) {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?emailerror=%s", id, url.QueryEscape(msg)), http.StatusSeeOther)
+	}
+	if to == "" || !strings.Contains(to, "@") {
+		redirectWithError("Please enter a valid email address.")
+		return
+	}
+
+	title := clientTitle(client.Name, inv.InvoiceDate)
+	pdfBytes, err := generateInvoicePDF(inv, client, title)
+	if err != nil {
+		redirectWithError("Could not generate the PDF.")
+		return
+	}
+
+	subject := fmt.Sprintf("Invoice from Electroclima Pro Services - %s", formatDateDisplay(inv.InvoiceDate))
+	body := fmt.Sprintf("Hello %s,\n\nPlease find attached your invoice from Electroclima Pro Services, LLC.\n\nTotal Amount Due: %s\n\nThank you for your business!\n\nElectroclima Pro Services, LLC\n786 389 3330", inv.ClientName, money(totalOf(inv.Jobs)))
+	if err := sendInvoiceEmail(to, subject, body, pdfBytes, invoiceFilename(title)); err != nil {
+		redirectWithError("Could not send the email: " + err.Error())
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?emailed=1", id), http.StatusSeeOther)
+}
+
+func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv, _, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv.CurrentInvoiceID = id
+
+	mu.Lock()
+	data = inv
+	err = saveData()
+	mu.Unlock()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 func main() {
+	hashPassword := flag.Bool("hashpassword", false, "prompt for a password and print its bcrypt hash, then exit")
+	flag.Parse()
+
+	if *hashPassword {
+		fmt.Print("Enter password: ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println()
+		if err != nil {
+			log.Fatal(err)
+		}
+		hash, err := bcrypt.GenerateFromPassword(pw, bcrypt.DefaultCost)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(hash))
+		return
+	}
+
+	loadDotEnv(".env")
+	if err := loadAuthConfig(); err != nil {
+		log.Fatal(err)
+	}
 	loadData()
+	if err := initDB(); err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/update", updateHandler)
-	mux.HandleFunc("/print", printHandler)
-	mux.HandleFunc("/reset", resetHandler)
+	mux.HandleFunc("GET /login", loginHandler)
+	mux.HandleFunc("POST /login", loginHandler)
+	mux.HandleFunc("POST /logout", logoutHandler)
+
+	mux.HandleFunc("GET /{$}", requireAuth(indexHandler))
+	mux.HandleFunc("POST /update", requireCSRF(updateHandler))
+	mux.HandleFunc("POST /reset", requireCSRF(resetHandler))
+	mux.HandleFunc("GET /clients", requireAuth(clientsListHandler))
+	mux.HandleFunc("GET /clients/{id}", requireAuth(clientDetailHandler))
+	mux.HandleFunc("GET /invoices/{id}/view", requireAuth(invoiceViewHandler))
+	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(invoiceDownloadHandler))
+	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(invoiceEmailHandler))
+	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(invoiceEditHandler))
 
 	addr := ":8080"
 	log.Printf("Invoice app running at http://localhost%s", addr)

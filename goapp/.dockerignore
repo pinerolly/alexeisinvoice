@@ -1,0 +1,6 @@
+invoiceapp.exe
+invoiceapp-linux-amd64
+invoices.db
+invoice-data.json
+.env
+*.db

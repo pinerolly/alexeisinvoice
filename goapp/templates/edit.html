@@ -1,262 +1,544 @@
-<!DOCTYPE html>
+<!doctype html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Invoice Editor - Electroclima Pro Services, LLC</title>
-<style>
-  :root {
-    --primary: #1c3d5a;
-    --accent: #2e86ab;
-    --light-bg: #f4f7f9;
-    --border: #d9e2e8;
-    --text: #2b2b2b;
-  }
-  * { box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    color: var(--text);
-    background: #e9edf0;
-    margin: 0;
-    padding: 20px;
-  }
-  .app {
-    max-width: 1400px;
-    margin: auto;
-    display: grid;
-    grid-template-columns: 380px 1fr;
-    gap: 20px;
-    align-items: start;
-  }
-  .form-panel {
-    background: #fff;
-    border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.08);
-    position: sticky;
-    top: 20px;
-  }
-  .form-panel h2 { margin-top: 0; font-size: 18px; color: var(--primary); }
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #555;
-    margin: 14px 0 4px;
-  }
-  input[type="text"], input[type="number"], input[type="time"], input[type="date"], textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 14px;
-    font-family: inherit;
-  }
-  textarea { resize: vertical; min-height: 90px; }
-  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
-  button {
-    cursor: pointer;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .btn-primary { background: var(--accent); color: #fff; flex: 1; }
-  .btn-secondary { background: var(--light-bg); color: var(--primary); border: 1px solid var(--border); }
-  .btn-print { background: var(--primary); color: #fff; width: 100%; margin-top: 10px; }
-  .job-item {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
-    margin-top: 14px;
-    background: var(--light-bg);
-    position: relative;
-  }
-  .job-item label { margin-top: 8px; }
-  .job-item label:first-of-type { margin-top: 0; }
-  .job-item .remove-job {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: #d9534f;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    width: 22px;
-    height: 22px;
-    font-size: 13px;
-    line-height: 1;
-    padding: 0;
-    cursor: pointer;
-  }
-  .add-job-btn {
-    width: 100%;
-    margin-top: 14px;
-    background: #fff;
-    color: var(--accent);
-    border: 1px dashed var(--accent);
-  }
-  .invoice { background: #fff; padding: 50px 60px; box-shadow: 0 0 20px rgba(0,0,0,0.08); }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 3px solid var(--primary);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
-  }
-  .company-name { font-size: 26px; font-weight: 700; color: var(--primary); letter-spacing: 0.5px; margin: 0; }
-  .company-details { margin-top: 8px; font-size: 13px; color: #555; line-height: 1.6; }
-  .invoice-title { text-align: right; }
-  .invoice-title h1 { margin: 0; font-size: 32px; color: var(--accent); letter-spacing: 2px; }
-  .invoice-title .invoice-no { font-size: 13px; color: #666; margin-top: 6px; }
-  .meta-grid { display: flex; justify-content: space-between; gap: 30px; margin-bottom: 30px; }
-  .meta-box { flex: 1; background: var(--light-bg); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 4px; }
-  .meta-box h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); }
-  .meta-box p { margin: 3px 0; font-size: 14px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-  thead th {
-    background: var(--primary);
-    color: #fff;
-    text-align: left;
-    padding: 12px 14px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  tbody td { padding: 16px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
-  tbody td.desc { line-height: 1.6; white-space: pre-wrap; }
-  tbody td.price { text-align: right; font-weight: 600; white-space: nowrap; }
-  .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-  .totals table { width: 300px; }
-  .totals td { padding: 8px 14px; font-size: 14px; }
-  .totals .grand-total td { border-top: 2px solid var(--primary); font-size: 18px; font-weight: 700; color: var(--primary); }
-  .signatures { display: flex; justify-content: space-between; gap: 40px; margin-top: 50px; }
-  .sig-block { flex: 1; }
-  .sig-line { border-bottom: 1px solid #999; height: 40px; margin-bottom: 6px; }
-  .sig-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-  .footer-note { margin-top: 40px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid var(--border); padding-top: 15px; }
-</style>
-</head>
-<body>
-
-<div class="app">
-  <div class="form-panel">
-    <h2>Edit Invoice</h2>
-    <form method="POST" action="/update">
-      <label for="invDate">Invoice Date</label>
-      <input type="date" id="invDate" name="invDate" value="{{.InvoiceDate}}" />
-
-      <label for="clientName">Client Name</label>
-      <input type="text" id="clientName" name="clientName" value="{{.ClientName}}" placeholder="e.g. John Smith" />
-
-      <label for="location">Location</label>
-      <input type="text" id="location" name="location" value="{{.Location}}" placeholder="e.g. 7820 NE 1st Ave" />
-
-      <label for="timeIn">Time In</label>
-      <input type="time" id="timeIn" name="timeIn" value="{{.TimeIn}}" />
-
-      <label for="timeOut">Time Out</label>
-      <input type="time" id="timeOut" name="timeOut" value="{{.TimeOut}}" />
-
-      <label>Jobs / Line Items</label>
-      {{range .Jobs}}
-      <div class="job-item">
-        <input type="hidden" name="jobId" value="{{.ID}}" />
-        <button type="submit" name="action" value="remove:{{.ID}}" class="remove-job" title="Remove this job">&#215;</button>
-        <label>Description</label>
-        <textarea name="description" placeholder="Describe the work performed...">{{.Description}}</textarea>
-        <label>Price ($)</label>
-        <input type="number" step="0.01" min="0" name="price" value="{{priceInput .Price}}" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice Editor - Electroclima Pro Services, LLC</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        padding: 20px;
+      }
+      .app {
+        max-width: 1400px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+      .form-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+        position: sticky;
+        top: 20px;
+      }
+      .form-panel h2 {
+        margin-top: 0;
+        font-size: 18px;
+        color: var(--primary);
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #555;
+        margin: 14px 0 4px;
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="time"],
+      input[type="date"],
+      textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        flex: 1;
+      }
+      .btn-secondary {
+        background: var(--light-bg);
+        color: var(--primary);
+        border: 1px solid var(--border);
+      }
+      .btn-print {
+        background: var(--primary);
+        color: #fff;
+        width: 100%;
+        margin-top: 10px;
+      }
+      .job-item {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 14px;
+        background: var(--light-bg);
+        position: relative;
+      }
+      .job-item label {
+        margin-top: 8px;
+      }
+      .job-item label:first-of-type {
+        margin-top: 0;
+      }
+      .job-item .remove-job {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: #d9534f;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        width: 22px;
+        height: 22px;
+        font-size: 13px;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+      }
+      .add-job-btn {
+        width: 100%;
+        margin-top: 14px;
+        background: #fff;
+        color: var(--accent);
+        border: 1px dashed var(--accent);
+      }
+      .invoice {
+        background: #fff;
+        padding: 50px 60px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+      }
+      .company-name {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: 0.5px;
+        margin: 0;
+      }
+      .company-details {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #555;
+        line-height: 1.6;
+      }
+      .invoice-title {
+        text-align: right;
+      }
+      .invoice-title h1 {
+        margin: 0;
+        font-size: 32px;
+        color: var(--accent);
+        letter-spacing: 2px;
+      }
+      .invoice-title .invoice-no {
+        font-size: 13px;
+        color: #666;
+        margin-top: 6px;
+      }
+      .meta-grid {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        margin-bottom: 30px;
+      }
+      .meta-box {
+        flex: 1;
+        background: var(--light-bg);
+        border-left: 4px solid var(--accent);
+        padding: 14px 18px;
+        border-radius: 4px;
+      }
+      .meta-box h3 {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--primary);
+      }
+      .meta-box p {
+        margin: 3px 0;
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 25px;
+      }
+      thead th {
+        background: var(--primary);
+        color: #fff;
+        text-align: left;
+        padding: 12px 14px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      tbody td {
+        padding: 16px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        vertical-align: top;
+      }
+      tbody td.desc {
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      tbody td.price {
+        text-align: right;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .totals {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 40px;
+      }
+      .totals table {
+        width: 300px;
+      }
+      .totals td {
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .totals .grand-total td {
+        border-top: 2px solid var(--primary);
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .signatures {
+        display: flex;
+        justify-content: space-between;
+        gap: 40px;
+        margin-top: 50px;
+      }
+      .sig-block {
+        flex: 1;
+      }
+      .sig-line {
+        border-bottom: 1px solid #999;
+        height: 40px;
+        margin-bottom: 6px;
+      }
+      .sig-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .footer-note {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        border-top: 1px solid var(--border);
+        padding-top: 15px;
+      }
+      .editing-banner {
+        grid-column: 1 / -1;
+        background: #fff3cd;
+        border: 1px solid #ffe69c;
+        color: #664d03;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        margin-bottom: -4px;
+      }
+      .editing-banner a {
+        color: #664d03;
+        font-weight: 600;
+      }
+      @media (max-width: 900px) {
+        body {
+          padding: 12px;
+        }
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .form-panel {
+          position: static;
+        }
+        .invoice {
+          padding: 24px 20px;
+        }
+        .header {
+          flex-direction: column;
+          gap: 12px;
+        }
+        .invoice-title {
+          text-align: left;
+        }
+        .meta-grid {
+          flex-direction: column;
+          gap: 14px;
+        }
+        .signatures {
+          flex-direction: column;
+          gap: 24px;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+      }
+      @media (max-width: 480px) {
+        input[type="text"],
+        input[type="number"],
+        input[type="time"],
+        input[type="date"],
+        textarea {
+          font-size: 16px;
+        }
+        .btn-row {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {{template "nav" .}}
+    <div class="app">
+      {{if gt .CurrentInvoiceID 0}}
+      <div class="editing-banner">
+        Editing existing invoice #{{.CurrentInvoiceID}} for {{.ClientName}}.
+        Printing will update this record. <a href="/clients">Back to clients</a>
       </div>
       {{end}}
+      <div class="form-panel">
+        <h2>Edit Invoice</h2>
+        <form method="POST" action="/update">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <label for="invDate">Invoice Date</label>
+          <input
+            type="date"
+            id="invDate"
+            name="invDate"
+            value="{{.InvoiceDate}}"
+          />
 
-      <button type="submit" name="action" value="add" class="add-job-btn">+ Add Job</button>
+          <label for="clientName">Client Name</label>
+          <input
+            type="text"
+            id="clientName"
+            name="clientName"
+            value="{{.ClientName}}"
+            placeholder="e.g. John Smith"
+          />
 
-      <div class="btn-row">
-        <button type="submit" name="action" value="save" class="btn-primary">Save</button>
+          <label for="phone">Phone</label>
+          <input
+            type="text"
+            id="phone"
+            name="phone"
+            value="{{.Phone}}"
+            placeholder="e.g. 786 389 3330"
+          />
+
+          <label for="email">Email</label>
+          <input
+            type="text"
+            id="email"
+            name="email"
+            value="{{.Email}}"
+            placeholder="e.g. client@example.com"
+          />
+
+          <label for="location">Location</label>
+          <input
+            type="text"
+            id="location"
+            name="location"
+            value="{{.Location}}"
+            placeholder="e.g. 7820 NE 1st Ave"
+          />
+
+          <label for="timeIn">Time In</label>
+          <input type="time" id="timeIn" name="timeIn" value="{{.TimeIn}}" />
+
+          <label for="timeOut">Time Out</label>
+          <input type="time" id="timeOut" name="timeOut" value="{{.TimeOut}}" />
+
+          <label>Jobs / Line Items</label>
+          {{range .Jobs}}
+          <div class="job-item">
+            <input type="hidden" name="jobId" value="{{.ID}}" />
+            <button
+              type="submit"
+              name="action"
+              value="remove:{{.ID}}"
+              class="remove-job"
+              title="Remove this job"
+            >
+              &#215;
+            </button>
+            <label>Description</label>
+            <textarea
+              name="description"
+              placeholder="Describe the work performed..."
+            >{{.Description}}</textarea>
+            <label>Price ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              name="price"
+              value="{{priceInput .Price}}"
+            />
+          </div>
+          {{end}}
+
+          <button type="submit" name="action" value="add" class="add-job-btn">
+            + Add Job
+          </button>
+
+          <div class="btn-row">
+            <button
+              type="submit"
+              name="action"
+              value="save"
+              class="btn-primary"
+            >
+              Save
+            </button>
+          </div>
+          <button type="submit" name="action" value="print" class="btn-print">
+            Print / Save as PDF
+          </button>
+        </form>
+
+        <form
+          method="POST"
+          action="/reset"
+          onsubmit="
+            return confirm('Clear the current invoice and start a new one?');
+          "
+        >
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <button
+            type="submit"
+            class="btn-secondary"
+            style="width: 100%; margin-top: 10px"
+          >
+            Clear / New Invoice
+          </button>
+        </form>
       </div>
-      <button type="submit" name="action" value="print" class="btn-print">Print / Save as PDF</button>
-    </form>
 
-    <form method="POST" action="/reset" onsubmit="return confirm('Reset all fields to the default sample invoice?');">
-      <button type="submit" class="btn-secondary" style="width:100%; margin-top:10px;">Reset to Default</button>
-    </form>
-  </div>
+      <div class="invoice">
+        <div class="header">
+          <div>
+            <p class="company-name">ELECTROCLIMA PRO SERVICES, LLC</p>
+            <div class="company-details">
+              10530 NW 35 CT, Miami, FL 33147<br />
+              Tel: 786 389 3330<br />
+              Email: alexoptano@yahoo.com
+            </div>
+          </div>
+          <div class="invoice-title">
+            <h1>INVOICE</h1>
+            <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
+          </div>
+        </div>
 
-  <div class="invoice">
-    <div class="header">
-      <div>
-        <p class="company-name">ELECTROCLIMA PRO SERVICES, LLC</p>
-        <div class="company-details">
-          10530 NW 35 CT, Miami, FL 33147<br />
-          Tel: 786 389 3330<br />
-          Email: alexoptano@yahoo.com
+        <div class="meta-grid">
+          <div class="meta-box">
+            <h3>Client</h3>
+            <p>{{if .ClientName}}{{.ClientName}}{{else}}&nbsp;{{end}}</p>
+            {{if .Phone}}
+            <p>Phone: {{.Phone}}</p>
+            {{end}} {{if .Email}}
+            <p>Email: {{.Email}}</p>
+            {{end}}
+            <p>Location: {{.Location}}</p>
+          </div>
+          <div class="meta-box">
+            <h3>Service Details</h3>
+            <p>Time In: {{formatTime .TimeIn}}</p>
+            <p>Time Out: {{formatTime .TimeOut}}</p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80%">Description of Work Performed</th>
+              <th style="width: 20%; text-align: right">Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Jobs}}
+            <tr>
+              <td class="desc">{{.Description}}</td>
+              <td class="price">{{money .Price}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <table>
+            <tr class="grand-total">
+              <td>Total Amount Due</td>
+              <td style="text-align: right">{{money (total .Jobs)}}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="signatures">
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-label">Technician Signature</div>
+          </div>
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-label">Customer Signature</div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services,
+          LLC &nbsp;|&nbsp; 786 389 3330
         </div>
       </div>
-      <div class="invoice-title">
-        <h1>INVOICE</h1>
-        <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
-      </div>
     </div>
-
-    <div class="meta-grid">
-      <div class="meta-box">
-        <h3>Client</h3>
-        <p>{{if .ClientName}}{{.ClientName}}{{else}}&nbsp;{{end}}</p>
-        <p>Location: {{.Location}}</p>
-      </div>
-      <div class="meta-box">
-        <h3>Service Details</h3>
-        <p>Time In: {{formatTime .TimeIn}}</p>
-        <p>Time Out: {{formatTime .TimeOut}}</p>
-      </div>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th style="width:80%">Description of Work Performed</th>
-          <th style="width:20%; text-align:right;">Price</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{range .Jobs}}
-        <tr>
-          <td class="desc">{{.Description}}</td>
-          <td class="price">{{money .Price}}</td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
-
-    <div class="totals">
-      <table>
-        <tr class="grand-total">
-          <td>Total Amount Due</td>
-          <td style="text-align:right;">{{money (total .Jobs)}}</td>
-        </tr>
-      </table>
-    </div>
-
-    <div class="signatures">
-      <div class="sig-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Technician Signature</div>
-      </div>
-      <div class="sig-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Customer Signature</div>
-      </div>
-    </div>
-
-    <div class="footer-note">
-      Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services, LLC &nbsp;|&nbsp; 786 389 3330
-    </div>
-  </div>
-</div>
-
-</body>
+  </body>
 </html>

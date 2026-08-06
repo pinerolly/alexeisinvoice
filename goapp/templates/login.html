@@ -1,0 +1,113 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log In - Electroclima Pro Services, LLC</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .login-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 32px;
+        width: 100%;
+        max-width: 360px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+      .login-panel h1 {
+        font-size: 18px;
+        color: var(--primary);
+        margin: 0 0 20px 0;
+        text-align: center;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #555;
+        margin: 14px 0 4px;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      button {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .error {
+        background: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-panel">
+      <h1>ELECTROCLIMA PRO SERVICES</h1>
+      {{if .Error}}
+      <div class="error">{{.Error}}</div>
+      {{end}}
+      <form method="POST" action="/login">
+        <input type="hidden" name="next" value="{{.Next}}" />
+        <label for="username">Username</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          autocomplete="username"
+          required
+        />
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        />
+
+        <button type="submit">Log In</button>
+      </form>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+services:
+  invoiceapp:
+    build: ./goapp
+    restart: unless-stopped
+    volumes:
+      - invoice_data:/data
+    environment:
+      AUTH_USERNAME: ${AUTH_USERNAME:-alexies}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - invoiceapp
+
+volumes:
+  invoice_data:
+  caddy_data:
+  caddy_config:

@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Invoice - Electroclima Pro Services, LLC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}}</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -19,7 +20,32 @@
         color: var(--text);
         background: #e9edf0;
         margin: 0;
-        padding: 30px;
+        padding: 20px;
+      }
+      .toolbar {
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .toolbar a,
+      .toolbar button {
+        display: inline-block;
+        text-decoration: none;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .toolbar a.secondary {
+        background: var(--light-bg);
+        color: var(--primary);
+        border: 1px solid var(--border);
       }
       .invoice {
         max-width: 850px;
@@ -109,6 +135,7 @@
       }
       tbody td.desc {
         line-height: 1.6;
+        white-space: pre-wrap;
       }
       tbody td.price {
         text-align: right;
@@ -153,12 +180,6 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      .time-row {
-        display: flex;
-        gap: 40px;
-        margin-top: 20px;
-        font-size: 13px;
-      }
       .footer-note {
         margin-top: 40px;
         text-align: center;
@@ -172,14 +193,135 @@
           background: #fff;
           padding: 0;
         }
+        .toolbar,
+        .topnav {
+          display: none !important;
+        }
         .invoice {
           box-shadow: none;
           padding: 20px 40px;
         }
       }
+      @media (max-width: 900px) {
+        body {
+          padding: 12px;
+        }
+        .invoice {
+          padding: 24px 20px;
+        }
+        .header {
+          flex-direction: column;
+          gap: 12px;
+        }
+        .invoice-title {
+          text-align: left;
+        }
+        .meta-grid {
+          flex-direction: column;
+          gap: 14px;
+        }
+        .signatures {
+          flex-direction: column;
+          gap: 24px;
+        }
+        .toolbar {
+          flex-wrap: wrap;
+          justify-content: stretch;
+        }
+        .toolbar a,
+        .toolbar button {
+          flex: 1 1 auto;
+          text-align: center;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+        .email-panel {
+          flex-direction: column;
+          align-items: stretch !important;
+        }
+      }
+      .email-panel {
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        background: #fff;
+        border-radius: 6px;
+        padding: 14px 18px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.06);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .email-panel input[type="email"] {
+        flex: 1;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      .banner {
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      .banner.success {
+        background: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+      }
+      .banner.error {
+        background: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+      }
     </style>
   </head>
   <body>
+    {{template "nav" .}}
+
+    {{if .EmailSent}}
+    <div class="banner success">Invoice emailed successfully.</div>
+    {{end}} {{if .EmailError}}
+    <div class="banner error">{{.EmailError}}</div>
+    {{end}}
+
+    <div class="toolbar">
+      <a class="secondary" href="/clients/{{.ClientID}}"
+        >&larr; Back to Client History</a
+      >
+      <a class="secondary" href="/invoices/{{.InvoiceID}}/edit"
+        >Edit this Invoice</a
+      >
+      <a class="secondary" href="/invoices/{{.InvoiceID}}/download"
+        >Download PDF</a
+      >
+      <button type="button" onclick="window.print()">
+        Print / Save as PDF
+      </button>
+    </div>
+
+    <div class="email-panel">
+      <form
+        method="POST"
+        action="/invoices/{{.InvoiceID}}/email"
+        style="display: flex; gap: 10px; align-items: center; flex: 1"
+      >
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+        <input
+          type="email"
+          name="to"
+          value="{{.Email}}"
+          placeholder="client@example.com"
+          required
+        />
+        <button type="submit">Email PDF to Client</button>
+      </form>
+    </div>
+
     <div class="invoice">
       <div class="header">
         <div>
@@ -192,20 +334,25 @@
         </div>
         <div class="invoice-title">
           <h1>INVOICE</h1>
-          <div class="invoice-no">Date: 07/18/2026</div>
+          <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-box">
           <h3>Client</h3>
-          <p>&nbsp;</p>
-          <p>Location: 7820 NE 1st Ave</p>
+          <p>{{if .ClientName}}{{.ClientName}}{{else}}&nbsp;{{end}}</p>
+          {{if .Phone}}
+          <p>Phone: {{.Phone}}</p>
+          {{end}} {{if .Email}}
+          <p>Email: {{.Email}}</p>
+          {{end}}
+          <p>Location: {{.Location}}</p>
         </div>
         <div class="meta-box">
           <h3>Service Details</h3>
-          <p>Time In: 10:00 AM</p>
-          <p>Time Out: 1:30 PM</p>
+          <p>Time In: {{formatTime .TimeIn}}</p>
+          <p>Time Out: {{formatTime .TimeOut}}</p>
         </div>
       </div>
 
@@ -217,29 +364,20 @@
           </tr>
         </thead>
         <tbody>
+          {{range .Jobs}}
           <tr>
-            <td class="desc">
-              The A/C unit is working properly, but the return duct was too
-              small, restricting proper airflow and cooling.
-              <br /><br />
-              Installed a new 14&quot; x 14&quot; return grille connected to a
-              12&quot; duct, tied into the unit's return line. System tested and
-              confirmed working correctly.
-            </td>
-            <td class="price">$500.00</td>
+            <td class="desc">{{.Description}}</td>
+            <td class="price">{{money .Price}}</td>
           </tr>
+          {{end}}
         </tbody>
       </table>
 
       <div class="totals">
         <table>
-          <tr>
-            <td>Subtotal</td>
-            <td style="text-align: right">$500.00</td>
-          </tr>
           <tr class="grand-total">
-            <td>Total Due</td>
-            <td style="text-align: right">$500.00</td>
+            <td>Total Amount Due</td>
+            <td style="text-align: right">{{money (total .Jobs)}}</td>
           </tr>
         </table>
       </div>

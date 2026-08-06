@@ -1,560 +1,645 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Invoice Editor - Electroclima Pro Services, LLC</title>
-<style>
-  :root {
-    --primary: #1c3d5a;
-    --accent: #2e86ab;
-    --light-bg: #f4f7f9;
-    --border: #d9e2e8;
-    --text: #2b2b2b;
-  }
-  * { box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    color: var(--text);
-    background: #e9edf0;
-    margin: 0;
-    padding: 20px;
-  }
-  .app {
-    max-width: 1400px;
-    margin: auto;
-    display: grid;
-    grid-template-columns: 380px 1fr;
-    gap: 20px;
-    align-items: start;
-  }
+  <head>
+    <meta charset="UTF-8" />
+    <title>Invoice Editor - Electroclima Pro Services, LLC</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        padding: 20px;
+      }
+      .app {
+        max-width: 1400px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
 
-  /* ---- Form panel ---- */
-  .form-panel {
-    background: #fff;
-    border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.08);
-    position: sticky;
-    top: 20px;
-  }
-  .form-panel h2 {
-    margin-top: 0;
-    font-size: 18px;
-    color: var(--primary);
-  }
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #555;
-    margin: 14px 0 4px;
-  }
-  input[type="text"],
-  input[type="number"],
-  input[type="time"],
-  input[type="date"],
-  textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 14px;
-    font-family: inherit;
-  }
-  textarea {
-    resize: vertical;
-    min-height: 90px;
-  }
-  .btn-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  button {
-    cursor: pointer;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-    flex: 1;
-  }
-  .btn-secondary {
-    background: var(--light-bg);
-    color: var(--primary);
-    border: 1px solid var(--border);
-  }
-  .btn-print {
-    background: var(--primary);
-    color: #fff;
-    width: 100%;
-    margin-top: 10px;
-  }
+      /* ---- Form panel ---- */
+      .form-panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+        position: sticky;
+        top: 20px;
+      }
+      .form-panel h2 {
+        margin-top: 0;
+        font-size: 18px;
+        color: var(--primary);
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #555;
+        margin: 14px 0 4px;
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="time"],
+      input[type="date"],
+      textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        flex: 1;
+      }
+      .btn-secondary {
+        background: var(--light-bg);
+        color: var(--primary);
+        border: 1px solid var(--border);
+      }
+      .btn-print {
+        background: var(--primary);
+        color: #fff;
+        width: 100%;
+        margin-top: 10px;
+      }
 
-  /* ---- Job items in form ---- */
-  .job-item {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px;
-    margin-top: 14px;
-    background: var(--light-bg);
-    position: relative;
-  }
-  .job-item label { margin-top: 8px; }
-  .job-item label:first-child { margin-top: 0; }
-  .job-item .remove-job {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: #d9534f;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    width: 22px;
-    height: 22px;
-    font-size: 13px;
-    line-height: 1;
-    padding: 0;
-    cursor: pointer;
-  }
-  .add-job-btn {
-    width: 100%;
-    margin-top: 14px;
-    background: #fff;
-    color: var(--accent);
-    border: 1px dashed var(--accent);
-  }
+      /* ---- Job items in form ---- */
+      .job-item {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 14px;
+        background: var(--light-bg);
+        position: relative;
+      }
+      .job-item label {
+        margin-top: 8px;
+      }
+      .job-item label:first-child {
+        margin-top: 0;
+      }
+      .job-item .remove-job {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: #d9534f;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        width: 22px;
+        height: 22px;
+        font-size: 13px;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+      }
+      .add-job-btn {
+        width: 100%;
+        margin-top: 14px;
+        background: #fff;
+        color: var(--accent);
+        border: 1px dashed var(--accent);
+      }
 
-  /* ---- Invoice preview ---- */
-  .invoice {
-    background: #fff;
-    padding: 50px 60px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.08);
-  }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 3px solid var(--primary);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
-  }
-  .company-name {
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--primary);
-    letter-spacing: 0.5px;
-    margin: 0;
-  }
-  .company-details {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #555;
-    line-height: 1.6;
-  }
-  .invoice-title { text-align: right; }
-  .invoice-title h1 {
-    margin: 0;
-    font-size: 32px;
-    color: var(--accent);
-    letter-spacing: 2px;
-  }
-  .invoice-title .invoice-no {
-    font-size: 13px;
-    color: #666;
-    margin-top: 6px;
-  }
-  .meta-grid {
-    display: flex;
-    justify-content: space-between;
-    gap: 30px;
-    margin-bottom: 30px;
-  }
-  .meta-box {
-    flex: 1;
-    background: var(--light-bg);
-    border-left: 4px solid var(--accent);
-    padding: 14px 18px;
-    border-radius: 4px;
-  }
-  .meta-box h3 {
-    margin: 0 0 8px 0;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--primary);
-  }
-  .meta-box p { margin: 3px 0; font-size: 14px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-  thead th {
-    background: var(--primary);
-    color: #fff;
-    text-align: left;
-    padding: 12px 14px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  tbody td {
-    padding: 16px 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-    vertical-align: top;
-  }
-  tbody td.desc { line-height: 1.6; white-space: pre-wrap; }
-  tbody td.price { text-align: right; font-weight: 600; white-space: nowrap; }
-  .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-  .totals table { width: 300px; }
-  .totals td { padding: 8px 14px; font-size: 14px; }
-  .totals .grand-total td {
-    border-top: 2px solid var(--primary);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-  }
-  .signatures {
-    display: flex;
-    justify-content: space-between;
-    gap: 40px;
-    margin-top: 50px;
-  }
-  .sig-block { flex: 1; }
-  .sig-line { border-bottom: 1px solid #999; height: 40px; margin-bottom: 6px; }
-  .sig-label {
-    font-size: 12px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .footer-note {
-    margin-top: 40px;
-    text-align: center;
-    font-size: 12px;
-    color: #888;
-    border-top: 1px solid var(--border);
-    padding-top: 15px;
-  }
+      /* ---- Invoice preview ---- */
+      .invoice {
+        background: #fff;
+        padding: 50px 60px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+      }
+      .company-name {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: 0.5px;
+        margin: 0;
+      }
+      .company-details {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #555;
+        line-height: 1.6;
+      }
+      .invoice-title {
+        text-align: right;
+      }
+      .invoice-title h1 {
+        margin: 0;
+        font-size: 32px;
+        color: var(--accent);
+        letter-spacing: 2px;
+      }
+      .invoice-title .invoice-no {
+        font-size: 13px;
+        color: #666;
+        margin-top: 6px;
+      }
+      .meta-grid {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        margin-bottom: 30px;
+      }
+      .meta-box {
+        flex: 1;
+        background: var(--light-bg);
+        border-left: 4px solid var(--accent);
+        padding: 14px 18px;
+        border-radius: 4px;
+      }
+      .meta-box h3 {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--primary);
+      }
+      .meta-box p {
+        margin: 3px 0;
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 25px;
+      }
+      thead th {
+        background: var(--primary);
+        color: #fff;
+        text-align: left;
+        padding: 12px 14px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      tbody td {
+        padding: 16px 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        vertical-align: top;
+      }
+      tbody td.desc {
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      tbody td.price {
+        text-align: right;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .totals {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 40px;
+      }
+      .totals table {
+        width: 300px;
+      }
+      .totals td {
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .totals .grand-total td {
+        border-top: 2px solid var(--primary);
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+      }
+      .signatures {
+        display: flex;
+        justify-content: space-between;
+        gap: 40px;
+        margin-top: 50px;
+      }
+      .sig-block {
+        flex: 1;
+      }
+      .sig-line {
+        border-bottom: 1px solid #999;
+        height: 40px;
+        margin-bottom: 6px;
+      }
+      .sig-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .footer-note {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        border-top: 1px solid var(--border);
+        padding-top: 15px;
+      }
 
-  @media print {
-    body { background: #fff; padding: 0; }
-    .form-panel, .app-title { display: none !important; }
-    .app { display: block; }
-    .invoice { box-shadow: none; padding: 20px 40px; }
-  }
-</style>
-</head>
-<body>
+      @media print {
+        body {
+          background: #fff;
+          padding: 0;
+        }
+        .form-panel,
+        .app-title {
+          display: none !important;
+        }
+        .app {
+          display: block;
+        }
+        .invoice {
+          box-shadow: none;
+          padding: 20px 40px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="form-panel">
+        <h2>Edit Invoice</h2>
 
-<div class="app">
-  <div class="form-panel">
-    <h2>Edit Invoice</h2>
+        <label for="invDate">Invoice Date</label>
+        <input type="date" id="invDate" />
 
-    <label for="invDate">Invoice Date</label>
-    <input type="date" id="invDate">
+        <label for="clientName">Client Name</label>
+        <input type="text" id="clientName" placeholder="e.g. John Smith" />
 
-    <label for="clientName">Client Name</label>
-    <input type="text" id="clientName" placeholder="e.g. John Smith">
+        <label for="location">Location</label>
+        <input type="text" id="location" placeholder="e.g. 7820 NE 1st Ave" />
 
-    <label for="location">Location</label>
-    <input type="text" id="location" placeholder="e.g. 7820 NE 1st Ave">
+        <label for="timeIn">Time In</label>
+        <input type="time" id="timeIn" />
 
-    <label for="timeIn">Time In</label>
-    <input type="time" id="timeIn">
+        <label for="timeOut">Time Out</label>
+        <input type="time" id="timeOut" />
 
-    <label for="timeOut">Time Out</label>
-    <input type="time" id="timeOut">
+        <label>Jobs / Line Items</label>
+        <div id="jobsContainer"></div>
+        <button class="add-job-btn" id="addJobBtn" type="button">
+          + Add Job
+        </button>
 
-    <label>Jobs / Line Items</label>
-    <div id="jobsContainer"></div>
-    <button class="add-job-btn" id="addJobBtn" type="button">+ Add Job</button>
+        <div class="btn-row">
+          <button class="btn-primary" id="saveBtn">Save</button>
+          <button class="btn-secondary" id="resetBtn">Reset</button>
+        </div>
+        <button class="btn-print" id="printBtn">Print / Save as PDF</button>
+      </div>
 
-    <div class="btn-row">
-      <button class="btn-primary" id="saveBtn">Save</button>
-      <button class="btn-secondary" id="resetBtn">Reset</button>
-    </div>
-    <button class="btn-print" id="printBtn">Print / Save as PDF</button>
-  </div>
+      <div class="invoice">
+        <div class="header">
+          <div>
+            <p class="company-name">ELECTROCLIMA PRO SERVICES, LLC</p>
+            <div class="company-details">
+              10530 NW 35 CT, Miami, FL 33147<br />
+              Tel: 786 389 3330<br />
+              Email: alexoptano@yahoo.com
+            </div>
+          </div>
+          <div class="invoice-title">
+            <h1>INVOICE</h1>
+            <div class="invoice-no">
+              Date: <span id="outDate">07/18/2026</span>
+            </div>
+          </div>
+        </div>
 
-  <div class="invoice">
-    <div class="header">
-      <div>
-        <p class="company-name">ELECTROCLIMA PRO SERVICES, LLC</p>
-        <div class="company-details">
-          10530 NW 35 CT, Miami, FL 33147<br>
-          Tel: 786 389 3330<br>
-          Email: alexoptano@yahoo.com
+        <div class="meta-grid">
+          <div class="meta-box">
+            <h3>Client</h3>
+            <p id="outClientName">&nbsp;</p>
+            <p>Location: <span id="outLocation"></span></p>
+          </div>
+          <div class="meta-box">
+            <h3>Service Details</h3>
+            <p>Time In: <span id="outTimeIn"></span></p>
+            <p>Time Out: <span id="outTimeOut"></span></p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80%">Description of Work Performed</th>
+              <th style="width: 20%; text-align: right">Price</th>
+            </tr>
+          </thead>
+          <tbody id="jobsTableBody"></tbody>
+        </table>
+
+        <div class="totals">
+          <table>
+            <tr class="grand-total">
+              <td>Total Amount Due</td>
+              <td style="text-align: right" id="outTotal">$0.00</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="signatures">
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-label">Technician Signature</div>
+          </div>
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-label">Customer Signature</div>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services,
+          LLC &nbsp;|&nbsp; 786 389 3330
         </div>
       </div>
-      <div class="invoice-title">
-        <h1>INVOICE</h1>
-        <div class="invoice-no">Date: <span id="outDate">07/18/2026</span></div>
-      </div>
     </div>
 
-    <div class="meta-grid">
-      <div class="meta-box">
-        <h3>Client</h3>
-        <p id="outClientName">&nbsp;</p>
-        <p>Location: <span id="outLocation"></span></p>
-      </div>
-      <div class="meta-box">
-        <h3>Service Details</h3>
-        <p>Time In: <span id="outTimeIn"></span></p>
-        <p>Time Out: <span id="outTimeOut"></span></p>
-      </div>
-    </div>
+    <script>
+      (function () {
+        const STORAGE_KEY = "electroclima-invoice-data";
 
-    <table>
-      <thead>
-        <tr>
-          <th style="width:80%">Description of Work Performed</th>
-          <th style="width:20%; text-align:right;">Price</th>
-        </tr>
-      </thead>
-      <tbody id="jobsTableBody">
-      </tbody>
-    </table>
+        const fields = [
+          "invDate",
+          "clientName",
+          "location",
+          "timeIn",
+          "timeOut",
+        ];
 
-    <div class="totals">
-      <table>
-        <tr class="grand-total">
-          <td>Total Amount Due</td>
-          <td style="text-align:right;" id="outTotal">$0.00</td>
-        </tr>
-      </table>
-    </div>
+        let jobs = [];
+        let jobIdCounter = 0;
 
-    <div class="signatures">
-      <div class="sig-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Technician Signature</div>
-      </div>
-      <div class="sig-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Customer Signature</div>
-      </div>
-    </div>
+        const defaultJobs = [
+          {
+            description:
+              'The A/C unit is working properly, but the return duct was too small, restricting proper airflow and cooling.\n\nInstalled a new 14" x 14" return grille connected to a 12" duct, tied into the unit\'s return line. System tested and confirmed working correctly.',
+            price: "500.00",
+          },
+        ];
 
-    <div class="footer-note">
-      Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services, LLC &nbsp;|&nbsp; 786 389 3330
-    </div>
-  </div>
-</div>
+        const defaults = {
+          invDate: "2026-07-18",
+          clientName: "",
+          location: "7820 NE 1st Ave",
+          timeIn: "10:00",
+          timeOut: "13:30",
+        };
 
-<script>
-(function () {
-  const STORAGE_KEY = 'electroclima-invoice-data';
+        function formatDate(isoDate) {
+          if (!isoDate) return "";
+          const [y, m, d] = isoDate.split("-");
+          return `${m}/${d}/${y}`;
+        }
 
-  const fields = ['invDate', 'clientName', 'location', 'timeIn', 'timeOut'];
+        function formatTime(t) {
+          if (!t) return "";
+          const [h, m] = t.split(":").map(Number);
+          const period = h >= 12 ? "PM" : "AM";
+          const hour12 = ((h + 11) % 12) + 1;
+          return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+        }
 
-  let jobs = [];
-  let jobIdCounter = 0;
+        function formatMoney(value) {
+          const n = parseFloat(value) || 0;
+          return "$" + n.toFixed(2);
+        }
 
-  const defaultJobs = [
-    {
-      description: 'The A/C unit is working properly, but the return duct was too small, restricting proper airflow and cooling.\n\nInstalled a new 14" x 14" return grille connected to a 12" duct, tied into the unit\'s return line. System tested and confirmed working correctly.',
-      price: '500.00'
-    }
-  ];
+        function getFormData() {
+          const data = {};
+          fields.forEach((id) => {
+            const el = document.getElementById(id);
+            data[id] = el.value;
+          });
+          return data;
+        }
 
-  const defaults = {
-    invDate: '2026-07-18',
-    clientName: '',
-    location: '7820 NE 1st Ave',
-    timeIn: '10:00',
-    timeOut: '13:30'
-  };
+        function setFormData(data) {
+          fields.forEach((id) => {
+            const el = document.getElementById(id);
+            el.value = data[id] !== undefined ? data[id] : defaults[id];
+          });
+        }
 
-  function formatDate(isoDate) {
-    if (!isoDate) return '';
-    const [y, m, d] = isoDate.split('-');
-    return `${m}/${d}/${y}`;
-  }
+        function cloneJobs(list) {
+          return list.map((j) => ({
+            description: j.description,
+            price: j.price,
+          }));
+        }
 
-  function formatTime(t) {
-    if (!t) return '';
-    const [h, m] = t.split(':').map(Number);
-    const period = h >= 12 ? 'PM' : 'AM';
-    const hour12 = ((h + 11) % 12) + 1;
-    return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
-  }
+        function renderJobsForm() {
+          const container = document.getElementById("jobsContainer");
+          container.innerHTML = "";
+          jobs.forEach((job) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "job-item";
+            wrapper.dataset.jobId = job.id;
 
-  function formatMoney(value) {
-    const n = parseFloat(value) || 0;
-    return '$' + n.toFixed(2);
-  }
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "remove-job";
+            removeBtn.textContent = "\u00D7";
+            removeBtn.title = "Remove this job";
+            removeBtn.addEventListener("click", () => removeJob(job.id));
+            wrapper.appendChild(removeBtn);
 
-  function getFormData() {
-    const data = {};
-    fields.forEach(id => {
-      const el = document.getElementById(id);
-      data[id] = el.value;
-    });
-    return data;
-  }
+            const descLabel = document.createElement("label");
+            descLabel.textContent = "Description";
+            wrapper.appendChild(descLabel);
 
-  function setFormData(data) {
-    fields.forEach(id => {
-      const el = document.getElementById(id);
-      el.value = data[id] !== undefined ? data[id] : defaults[id];
-    });
-  }
+            const descInput = document.createElement("textarea");
+            descInput.placeholder = "Describe the work performed...";
+            descInput.value = job.description;
+            descInput.addEventListener("input", () => {
+              job.description = descInput.value;
+              render();
+            });
+            wrapper.appendChild(descInput);
 
-  function cloneJobs(list) {
-    return list.map(j => ({ description: j.description, price: j.price }));
-  }
+            const priceLabel = document.createElement("label");
+            priceLabel.textContent = "Price ($)";
+            wrapper.appendChild(priceLabel);
 
-  function renderJobsForm() {
-    const container = document.getElementById('jobsContainer');
-    container.innerHTML = '';
-    jobs.forEach(job => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'job-item';
-      wrapper.dataset.jobId = job.id;
+            const priceInput = document.createElement("input");
+            priceInput.type = "number";
+            priceInput.step = "0.01";
+            priceInput.min = "0";
+            priceInput.placeholder = "0.00";
+            priceInput.value = job.price;
+            priceInput.addEventListener("input", () => {
+              job.price = priceInput.value;
+              render();
+            });
+            wrapper.appendChild(priceInput);
 
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'remove-job';
-      removeBtn.textContent = '\u00D7';
-      removeBtn.title = 'Remove this job';
-      removeBtn.addEventListener('click', () => removeJob(job.id));
-      wrapper.appendChild(removeBtn);
+            container.appendChild(wrapper);
+          });
+        }
 
-      const descLabel = document.createElement('label');
-      descLabel.textContent = 'Description';
-      wrapper.appendChild(descLabel);
+        function addJob(job) {
+          jobs.push({
+            id: ++jobIdCounter,
+            description: job ? job.description : "",
+            price: job ? job.price : "",
+          });
+          renderJobsForm();
+          render();
+        }
 
-      const descInput = document.createElement('textarea');
-      descInput.placeholder = 'Describe the work performed...';
-      descInput.value = job.description;
-      descInput.addEventListener('input', () => { job.description = descInput.value; render(); });
-      wrapper.appendChild(descInput);
+        function removeJob(id) {
+          if (jobs.length <= 1) {
+            alert("At least one job/line item is required.");
+            return;
+          }
+          jobs = jobs.filter((j) => j.id !== id);
+          renderJobsForm();
+          render();
+        }
 
-      const priceLabel = document.createElement('label');
-      priceLabel.textContent = 'Price ($)';
-      wrapper.appendChild(priceLabel);
+        function renderInvoiceTable() {
+          const tbody = document.getElementById("jobsTableBody");
+          tbody.innerHTML = "";
+          let total = 0;
+          jobs.forEach((job) => {
+            const priceValue = parseFloat(job.price) || 0;
+            total += priceValue;
+            const tr = document.createElement("tr");
+            const descTd = document.createElement("td");
+            descTd.className = "desc";
+            descTd.textContent = job.description;
+            const priceTd = document.createElement("td");
+            priceTd.className = "price";
+            priceTd.textContent = formatMoney(priceValue);
+            tr.appendChild(descTd);
+            tr.appendChild(priceTd);
+            tbody.appendChild(tr);
+          });
+          document.getElementById("outTotal").textContent = formatMoney(total);
+        }
 
-      const priceInput = document.createElement('input');
-      priceInput.type = 'number';
-      priceInput.step = '0.01';
-      priceInput.min = '0';
-      priceInput.placeholder = '0.00';
-      priceInput.value = job.price;
-      priceInput.addEventListener('input', () => { job.price = priceInput.value; render(); });
-      wrapper.appendChild(priceInput);
+        function render() {
+          const data = getFormData();
+          document.getElementById("outDate").textContent = formatDate(
+            data.invDate,
+          );
+          document.getElementById("outClientName").textContent =
+            data.clientName || "\u00A0";
+          document.getElementById("outLocation").textContent = data.location;
+          document.getElementById("outTimeIn").textContent = formatTime(
+            data.timeIn,
+          );
+          document.getElementById("outTimeOut").textContent = formatTime(
+            data.timeOut,
+          );
+          renderInvoiceTable();
+        }
 
-      container.appendChild(wrapper);
-    });
-  }
+        function save() {
+          const data = getFormData();
+          data.jobs = cloneJobs(jobs);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          render();
+        }
 
-  function addJob(job) {
-    jobs.push({ id: ++jobIdCounter, description: job ? job.description : '', price: job ? job.price : '' });
-    renderJobsForm();
-    render();
-  }
+        function reset() {
+          if (confirm("Reset all fields to the default sample invoice?")) {
+            setFormData(defaults);
+            jobs = [];
+            jobIdCounter = 0;
+            defaultJobs.forEach((j) => addJob(j));
+            localStorage.removeItem(STORAGE_KEY);
+            render();
+          }
+        }
 
-  function removeJob(id) {
-    if (jobs.length <= 1) {
-      alert('At least one job/line item is required.');
-      return;
-    }
-    jobs = jobs.filter(j => j.id !== id);
-    renderJobsForm();
-    render();
-  }
+        function load() {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          const data = saved ? JSON.parse(saved) : defaults;
+          setFormData(data);
+          jobs = [];
+          jobIdCounter = 0;
+          const savedJobs =
+            saved && data.jobs && data.jobs.length ? data.jobs : defaultJobs;
+          savedJobs.forEach((j) => addJob(j));
+          render();
+        }
 
-  function renderInvoiceTable() {
-    const tbody = document.getElementById('jobsTableBody');
-    tbody.innerHTML = '';
-    let total = 0;
-    jobs.forEach(job => {
-      const priceValue = parseFloat(job.price) || 0;
-      total += priceValue;
-      const tr = document.createElement('tr');
-      const descTd = document.createElement('td');
-      descTd.className = 'desc';
-      descTd.textContent = job.description;
-      const priceTd = document.createElement('td');
-      priceTd.className = 'price';
-      priceTd.textContent = formatMoney(priceValue);
-      tr.appendChild(descTd);
-      tr.appendChild(priceTd);
-      tbody.appendChild(tr);
-    });
-    document.getElementById('outTotal').textContent = formatMoney(total);
-  }
+        fields.forEach((id) => {
+          document.getElementById(id).addEventListener("input", render);
+        });
+        document.getElementById("saveBtn").addEventListener("click", save);
+        document.getElementById("resetBtn").addEventListener("click", reset);
+        document
+          .getElementById("printBtn")
+          .addEventListener("click", printInvoice);
+        document
+          .getElementById("addJobBtn")
+          .addEventListener("click", () => addJob());
 
-  function render() {
-    const data = getFormData();
-    document.getElementById('outDate').textContent = formatDate(data.invDate);
-    document.getElementById('outClientName').textContent = data.clientName || '\u00A0';
-    document.getElementById('outLocation').textContent = data.location;
-    document.getElementById('outTimeIn').textContent = formatTime(data.timeIn);
-    document.getElementById('outTimeOut').textContent = formatTime(data.timeOut);
-    renderInvoiceTable();
-  }
+        function slugify(text) {
+          return (text || "")
+            .trim()
+            .replace(/[\\/:*?"<>|]+/g, "")
+            .replace(/\s+/g, "_");
+        }
 
-  function save() {
-    const data = getFormData();
-    data.jobs = cloneJobs(jobs);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    render();
-  }
+        function printInvoice() {
+          save();
+          const data = getFormData();
+          const clientPart = slugify(data.clientName) || "Invoice";
+          const datePart = data.invDate || "";
+          const originalTitle = document.title;
+          document.title = `${clientPart}_${datePart}`;
+          window.print();
+          document.title = originalTitle;
+        }
 
-  function reset() {
-    if (confirm('Reset all fields to the default sample invoice?')) {
-      setFormData(defaults);
-      jobs = [];
-      jobIdCounter = 0;
-      defaultJobs.forEach(j => addJob(j));
-      localStorage.removeItem(STORAGE_KEY);
-      render();
-    }
-  }
-
-  function load() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const data = saved ? JSON.parse(saved) : defaults;
-    setFormData(data);
-    jobs = [];
-    jobIdCounter = 0;
-    const savedJobs = (saved && data.jobs && data.jobs.length) ? data.jobs : defaultJobs;
-    savedJobs.forEach(j => addJob(j));
-    render();
-  }
-
-  fields.forEach(id => {
-    document.getElementById(id).addEventListener('input', render);
-  });
-  document.getElementById('saveBtn').addEventListener('click', save);
-  document.getElementById('resetBtn').addEventListener('click', reset);
-  document.getElementById('printBtn').addEventListener('click', printInvoice);
-  document.getElementById('addJobBtn').addEventListener('click', () => addJob());
-
-  function slugify(text) {
-    return (text || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_');
-  }
-
-  function printInvoice() {
-    save();
-    const data = getFormData();
-    const clientPart = slugify(data.clientName) || 'Invoice';
-    const datePart = data.invDate || '';
-    const originalTitle = document.title;
-    document.title = `${clientPart}_${datePart}`;
-    window.print();
-    document.title = originalTitle;
-  }
-
-  load();
-})();
-</script>
-
-</body>
+        load();
+      })();
+    </script>
+  </body>
 </html>

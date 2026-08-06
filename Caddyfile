@@ -1,0 +1,5 @@
+# Replace example.com with your real domain. Caddy automatically obtains and
+# renews a Let's Encrypt TLS certificate for it.
+example.com {
+	reverse_proxy invoiceapp:8080
+}
