@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Invoice - Electroclima Pro Services, LLC</title>
+<style>
+  :root {
+    --primary: #1c3d5a;
+    --accent: #2e86ab;
+    --light-bg: #f4f7f9;
+    --border: #d9e2e8;
+    --text: #2b2b2b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: var(--text);
+    background: #e9edf0;
+    margin: 0;
+    padding: 30px;
+  }
+  .invoice {
+    max-width: 850px;
+    margin: auto;
+    background: #fff;
+    padding: 50px 60px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.08);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+  }
+  .company-name {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    margin: 0;
+  }
+  .company-details {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+  }
+  .invoice-title {
+    text-align: right;
+  }
+  .invoice-title h1 {
+    margin: 0;
+    font-size: 32px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .invoice-title .invoice-no {
+    font-size: 13px;
+    color: #666;
+    margin-top: 6px;
+  }
+  .meta-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+    margin-bottom: 30px;
+  }
+  .meta-box {
+    flex: 1;
+    background: var(--light-bg);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 4px;
+  }
+  .meta-box h3 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+  }
+  .meta-box p {
+    margin: 3px 0;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+  }
+  thead th {
+    background: var(--primary);
+    color: #fff;
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tbody td {
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    vertical-align: top;
+  }
+  tbody td.desc {
+    line-height: 1.6;
+  }
+  tbody td.price {
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .totals {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 40px;
+  }
+  .totals table {
+    width: 300px;
+  }
+  .totals td {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+  .totals .grand-total td {
+    border-top: 2px solid var(--primary);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .signatures {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    margin-top: 50px;
+  }
+  .sig-block {
+    flex: 1;
+  }
+  .sig-line {
+    border-bottom: 1px solid #999;
+    height: 40px;
+    margin-bottom: 6px;
+  }
+  .sig-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .time-row {
+    display: flex;
+    gap: 40px;
+    margin-top: 20px;
+    font-size: 13px;
+  }
+  .footer-note {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    border-top: 1px solid var(--border);
+    padding-top: 15px;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .invoice { box-shadow: none; padding: 20px 40px; }
+  }
+</style>
+</head>
+<body>
+  <div class="invoice">
+    <div class="header">
+      <div>
+        <p class="company-name">ELECTROCLIMA PRO SERVICES, LLC</p>
+        <div class="company-details">
+          10530 NW 35 CT, Miami, FL 33147<br>
+          Tel: 786 389 3330<br>
+          Email: alexoptano@yahoo.com
+        </div>
+      </div>
+      <div class="invoice-title">
+        <h1>INVOICE</h1>
+        <div class="invoice-no">Date: 07/18/2026</div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-box">
+        <h3>Client</h3>
+        <p>&nbsp;</p>
+        <p>Location: 7820 NE 1st Ave</p>
+      </div>
+      <div class="meta-box">
+        <h3>Service Details</h3>
+        <p>Time In: 10:00 AM</p>
+        <p>Time Out: 1:30 PM</p>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:80%">Description of Work Performed</th>
+          <th style="width:20%; text-align:right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="desc">
+            The A/C unit is working properly, but the return duct was too small, restricting proper airflow and cooling.
+            <br><br>
+            Installed a new 14&quot; x 14&quot; return grille connected to a 12&quot; duct, tied into the unit's return line. System tested and confirmed working correctly.
+          </td>
+          <td class="price">$500.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <table>
+        <tr>
+          <td>Subtotal</td>
+          <td style="text-align:right;">$500.00</td>
+        </tr>
+        <tr class="grand-total">
+          <td>Total Due</td>
+          <td style="text-align:right;">$500.00</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="signatures">
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">Technician Signature</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-label">Customer Signature</div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services, LLC &nbsp;|&nbsp; 786 389 3330
+    </div>
+  </div>
+</body>
+</html>
