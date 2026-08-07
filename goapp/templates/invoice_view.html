@@ -281,9 +281,7 @@
     </style>
   </head>
   <body>
-    {{template "nav" .}}
-
-    {{if .EmailSent}}
+    {{template "nav" .}} {{if .EmailSent}}
     <div class="banner success">Invoice emailed successfully.</div>
     {{end}} {{if .EmailError}}
     <div class="banner error">{{.EmailError}}</div>

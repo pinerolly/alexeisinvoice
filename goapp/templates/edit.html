@@ -126,6 +126,37 @@
         padding: 0;
         cursor: pointer;
       }
+      .job-item.collapsed {
+        padding: 10px 40px 10px 12px;
+      }
+      .job-item.collapsed .job-fields {
+        display: none;
+      }
+      .job-item .job-summary {
+        display: none;
+      }
+      .job-item.collapsed .job-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+      }
+      .job-summary .job-summary-desc {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 14px;
+        color: var(--primary);
+      }
+      .job-summary .job-summary-price {
+        flex-shrink: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--accent);
+      }
       .add-job-btn {
         width: 100%;
         margin-top: 14px;
@@ -410,19 +441,30 @@
               >
                 &#215;
               </button>
-              <label>Description</label>
-              <textarea
-                name="description"
-                placeholder="Describe the work performed..."
-              >{{.Description}}</textarea>
-              <label>Price ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                name="price"
-                value="{{priceInput .Price}}"
-              />
+              <div
+                class="job-summary"
+                onclick="expandJob(this.closest('.job-item'))"
+              >
+                <span class="job-summary-desc"></span>
+                <span class="job-summary-price"></span>
+              </div>
+              <div class="job-fields">
+                <label>Description</label>
+                <textarea
+                  name="description"
+                  placeholder="Describe the work performed..."
+                >
+{{.Description}}</textarea
+                >
+                <label>Price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="price"
+                  value="{{priceInput .Price}}"
+                />
+              </div>
             </div>
             {{end}}
           </div>
@@ -438,13 +480,28 @@
               >
                 &#215;
               </button>
-              <label>Description</label>
-              <textarea
-                name="description"
-                placeholder="Describe the work performed..."
-              ></textarea>
-              <label>Price ($)</label>
-              <input type="number" step="0.01" min="0" name="price" value="" />
+              <div
+                class="job-summary"
+                onclick="expandJob(this.closest('.job-item'))"
+              >
+                <span class="job-summary-desc"></span>
+                <span class="job-summary-price"></span>
+              </div>
+              <div class="job-fields">
+                <label>Description</label>
+                <textarea
+                  name="description"
+                  placeholder="Describe the work performed..."
+                ></textarea>
+                <label>Price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="price"
+                  value=""
+                />
+              </div>
             </div>
           </template>
 
@@ -564,13 +621,35 @@
     </div>
 
     <script>
+      function collapseJob(item) {
+        const textarea = item.querySelector(".job-fields textarea");
+        const price = item.querySelector('.job-fields input[name="price"]');
+        const desc = textarea.value.trim();
+        if (!desc) return; // nothing to summarize, leave it expanded
+        const preview = desc.length > 60 ? desc.slice(0, 60) + "…" : desc;
+        const amount = parseFloat(price.value) || 0;
+        item.querySelector(".job-summary-desc").textContent = preview;
+        item.querySelector(".job-summary-price").textContent =
+          "$" + amount.toFixed(2);
+        item.classList.add("collapsed");
+      }
+
+      function expandJob(item) {
+        item.classList.remove("collapsed");
+        item.querySelector(".job-fields textarea").focus();
+      }
+
       function addJob() {
         const list = document.getElementById("jobsList");
+        const items = list.querySelectorAll(".job-item");
+        if (items.length) {
+          collapseJob(items[items.length - 1]);
+        }
         const tpl = document.getElementById("jobTemplate");
         const node = tpl.content.cloneNode(true);
         list.appendChild(node);
-        const items = list.querySelectorAll(".job-item");
-        items[items.length - 1].querySelector("textarea").focus();
+        const newItems = list.querySelectorAll(".job-item");
+        newItems[newItems.length - 1].querySelector("textarea").focus();
       }
 
       function removeJob(btn) {
@@ -578,8 +657,9 @@
         const item = btn.closest(".job-item");
         if (list.querySelectorAll(".job-item").length <= 1) {
           // Always keep at least one row; clear it instead of removing.
-          item.querySelector("textarea").value = "";
-          item.querySelector('input[name="price"]').value = "";
+          item.classList.remove("collapsed");
+          item.querySelector(".job-fields textarea").value = "";
+          item.querySelector('.job-fields input[name="price"]').value = "";
           return;
         }
         item.remove();

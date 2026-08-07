@@ -303,54 +303,48 @@ func currentUsername(r *http.Request) string {
 	return s.username
 }
 
-// AccountPageView is the template data for the change-password page.
-type AccountPageView struct {
-	Username  string
-	CSRFToken string
-	Error     string
-	Success   string
-	IsAdmin   bool
-}
-
-func accountHandler(w http.ResponseWriter, r *http.Request) {
+// accountPasswordHandler updates the logged-in admin's own password, then
+// redirects back to the Workers page (which now hosts the "My Account" panel).
+func accountPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	_, s := getSession(r)
-	view := AccountPageView{Username: s.username, CSRFToken: s.csrfToken, IsAdmin: s.role == "admin"}
+	currentPassword := r.FormValue("current_password")
+	newPassword := r.FormValue("new_password")
+	confirmPassword := r.FormValue("confirm_password")
 
-	if r.Method == http.MethodPost {
-		currentPassword := r.FormValue("current_password")
-		newPassword := r.FormValue("new_password")
-		confirmPassword := r.FormValue("confirm_password")
-
-		user, err := getUserByUsername(s.username)
-		switch {
-		case err != nil:
-			view.Error = "Account not found."
-		case bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)) != nil:
-			view.Error = "Current password is incorrect."
-		case len(newPassword) < 4:
-			view.Error = "New password must be at least 4 characters."
-		case newPassword != confirmPassword:
-			view.Error = "New password and confirmation do not match."
-		default:
-			if err := updateUserPassword(user.ID, newPassword); err != nil {
-				view.Error = err.Error()
-			} else {
-				view.Success = "Password updated successfully."
-			}
+	user, err := getUserByUsername(s.username)
+	var acctErr string
+	switch {
+	case err != nil:
+		acctErr = "Account not found."
+	case bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)) != nil:
+		acctErr = "Current password is incorrect."
+	case len(newPassword) < 4:
+		acctErr = "New password must be at least 4 characters."
+	case newPassword != confirmPassword:
+		acctErr = "New password and confirmation do not match."
+	default:
+		if err := updateUserPassword(user.ID, newPassword); err != nil {
+			acctErr = err.Error()
 		}
 	}
 
-	if err := mustTemplate("account.html").Execute(w, view); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if acctErr != "" {
+		http.Redirect(w, r, "/admin/users?accterror="+url.QueryEscape(acctErr), http.StatusSeeOther)
+		return
 	}
+	http.Redirect(w, r, "/admin/users?acctsuccess=1", http.StatusSeeOther)
 }
 
-// UsersPageView is the template data for the admin user-management page.
+// UsersPageView is the template data for the admin Workers page, which also
+// hosts the "My Account" (change own password) panel.
 type UsersPageView struct {
-	Users     []User
-	CSRFToken string
-	Error     string
-	IsAdmin   bool
+	Users       []User
+	CSRFToken   string
+	Error       string
+	Username    string
+	AcctError   string
+	AcctSuccess bool
+	IsAdmin     bool
 }
 
 func usersListHandler(w http.ResponseWriter, r *http.Request) {
@@ -359,7 +353,15 @@ func usersListHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := UsersPageView{Users: users, CSRFToken: currentCSRFToken(r), Error: r.URL.Query().Get("error"), IsAdmin: true}
+	view := UsersPageView{
+		Users:       users,
+		CSRFToken:   currentCSRFToken(r),
+		Error:       r.URL.Query().Get("error"),
+		Username:    currentUsername(r),
+		AcctError:   r.URL.Query().Get("accterror"),
+		AcctSuccess: r.URL.Query().Get("acctsuccess") == "1",
+		IsAdmin:     true,
+	}
 	if err := mustTemplate("users.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
