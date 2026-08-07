@@ -18,7 +18,7 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           mkdir -p "${RUNNER_TEMP}/deploy-ssh"
-          printf '%s' "$VPS_SSH_KEY" | tr -d '\r' > "${RUNNER_TEMP}/deploy-ssh/id_rsa"
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "${RUNNER_TEMP}/deploy-ssh/id_rsa"
           chmod 600 "${RUNNER_TEMP}/deploy-ssh/id_rsa"
 
       - name: SSH and Deploy
