@@ -321,6 +321,37 @@
         color: #842029;
         border: 1px solid #f5c2c7;
       }
+      .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .status-paid {
+        background: #d1e7dd;
+        color: #0f5132;
+      }
+      .status-unpaid {
+        background: #f8d7da;
+        color: #842029;
+      }
+      .status-toggle {
+        display: inline;
+        margin-left: 8px;
+      }
+      .status-toggle button {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
@@ -385,6 +416,29 @@
           <h1>INVOICE</h1>
           <div class="invoice-no">Invoice #{{.InvoiceID}}</div>
           <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
+          <div class="invoice-no">
+            <span
+              class="status-badge {{if .Paid}}status-paid{{else}}status-unpaid{{end}}"
+              >{{if .Paid}}Paid{{else}}Unpaid{{end}}</span
+            >
+            {{if .IsAdmin}}
+            <form
+              class="status-toggle"
+              method="POST"
+              action="/invoices/{{.InvoiceID}}/paid"
+            >
+              <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+              <input
+                type="hidden"
+                name="redirect"
+                value="/invoices/{{.InvoiceID}}/view"
+              />
+              <button type="submit">
+                {{if .Paid}}Mark Unpaid{{else}}Mark Paid{{end}}
+              </button>
+            </form>
+            {{end}}
+          </div>
         </div>
       </div>
 

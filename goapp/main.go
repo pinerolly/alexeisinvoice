@@ -49,6 +49,7 @@ type InvoiceData struct {
 	TechnicianUsername  string `json:"technicianUsername"`
 	TechnicianSignature string `json:"technicianSignature"` // data:image/png;base64,... from the signature pad
 	CustomerSignature   string `json:"customerSignature"`   // data:image/png;base64,... from the signature pad
+	Paid                bool   `json:"paid"`
 }
 
 var (
@@ -484,6 +485,29 @@ func invoiceDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/clients/%d", client.ID), http.StatusSeeOther)
 }
 
+// invoicePaidHandler toggles an invoice's paid status (admin only).
+func invoicePaidHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	inv, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := setInvoicePaid(id, !inv.Paid); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	redirect := r.FormValue("redirect")
+	if redirect == "" {
+		redirect = fmt.Sprintf("/clients/%d", client.ID)
+	}
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
 // invoiceDownloadHandler streams the invoice as a downloadable PDF.
 func invoiceDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -615,6 +639,7 @@ func main() {
 	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(requireSignature(invoiceEmailHandler)))
 	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(requireSignature(invoiceEditHandler)))
 	mux.HandleFunc("POST /invoices/{id}/delete", requireAdmin(requireCSRF(invoiceDeleteHandler)))
+	mux.HandleFunc("POST /invoices/{id}/paid", requireAdmin(requireCSRF(invoicePaidHandler)))
 	mux.HandleFunc("GET /account/signature", requireAuth(accountSignatureHandler))
 	mux.HandleFunc("POST /account/signature", requireCSRF(accountSignatureSaveHandler))
 	mux.HandleFunc("POST /account", requireAuth(requireCSRF(accountPasswordHandler)))

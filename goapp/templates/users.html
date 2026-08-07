@@ -60,6 +60,24 @@
       table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
+      }
+      th:nth-child(1),
+      td:nth-child(1) {
+        width: 25%;
+      }
+      th:nth-child(2),
+      td:nth-child(2) {
+        width: 20%;
+        text-align: center;
+      }
+      th:nth-child(3),
+      td:nth-child(3) {
+        width: 35%;
+      }
+      th:nth-child(4),
+      td:nth-child(4) {
+        width: 20%;
       }
       thead th {
         background: var(--primary);
@@ -237,7 +255,6 @@
         <table>
           <thead>
             <tr>
-              <th>Username</th>
               <th>Name</th>
               <th>Role</th>
               <th>Signature</th>
@@ -259,10 +276,11 @@
               onclick="fillUserForm(this)"
               {{end}}
             >
-              <td>{{.Username}}</td>
               <td>{{.FullName}}</td>
-              <td>
-                <span class="role-badge role-{{.Role}}">{{.Role}}</span>
+              <td style="text-align: center">
+                <span class="role-badge role-{{.Role}}"
+                  >{{if eq .Role "admin"}}ADM{{else}}USR{{end}}</span
+                >
               </td>
               <td onclick="event.stopPropagation()">
                 {{if .Signature}} {{if eq .Username $.Username}}
@@ -336,7 +354,7 @@
                 <input type="text" id="username" name="username" required />
               </div>
               <div>
-                <label for="password">Password</label>
+                <label for="password">New Password</label>
                 <div class="password-wrap">
                   <input type="password" id="password" name="password" />
                   <button
@@ -376,126 +394,7 @@
       </div>
       {{end}}
 
-      <div class="panel">
-        <h1>Update Password</h1>
-        {{if .AcctError}}
-        <div class="error">{{.AcctError}}</div>
-        {{end}} {{if .AcctSuccess}}
-        <div class="success">Password updated successfully.</div>
-        {{end}}
-        <form method="POST" action="/account">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-          <div class="add-form">
-            <div class="field-stack">
-              <div class="name-row">
-                <div>
-                  <label for="current_password">Current Password</label>
-                  <div class="password-wrap">
-                    <input
-                      type="password"
-                      id="current_password"
-                      name="current_password"
-                      autocomplete="current-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      class="password-toggle"
-                      aria-label="Show password"
-                      aria-pressed="false"
-                      onclick="togglePasswordVisibility(this)"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"
-                        ></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label for="new_password">New Password</label>
-                  <div class="password-wrap">
-                    <input
-                      type="password"
-                      id="new_password"
-                      name="new_password"
-                      autocomplete="new-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      class="password-toggle"
-                      aria-label="Show password"
-                      aria-pressed="false"
-                      onclick="togglePasswordVisibility(this)"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"
-                        ></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div class="name-row">
-                <div>
-                  <label for="confirm_password">Confirm New Password</label>
-                  <div class="password-wrap">
-                    <input
-                      type="password"
-                      id="confirm_password"
-                      name="confirm_password"
-                      autocomplete="new-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      class="password-toggle"
-                      aria-label="Show password"
-                      aria-pressed="false"
-                      onclick="togglePasswordVisibility(this)"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"
-                        ></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <button type="submit">Save</button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+      
     <script>
       function togglePasswordVisibility(btn) {
         const input = btn.previousElementSibling;
