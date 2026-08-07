@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Users - Electroclima Pro Services, LLC</title>
+    <title>Workers - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -230,7 +230,7 @@
 
     <div class="page">
       <div class="panel">
-        <h1>Users</h1>
+        <h1>Workers</h1>
         {{if .Error}}
         <div class="error">{{.Error}}</div>
         {{end}}
@@ -296,7 +296,7 @@
                   <form
                     method="POST"
                     action="/admin/users/{{.ID}}/delete"
-                    onsubmit="return confirm('Delete user {{.Username}}?');"
+                    onsubmit="return confirm('Delete worker {{.Username}}?');"
                   >
                     <input
                       type="hidden"
@@ -316,7 +316,7 @@
 
       {{if .IsAdmin}}
       <div class="panel">
-        <h2>Add/Update User</h2>
+        <h2>Add/Update Worker</h2>
         <form class="add-form" method="POST" action="/admin/users">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <div class="field-stack">

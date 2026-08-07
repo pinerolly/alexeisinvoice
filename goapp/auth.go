@@ -150,7 +150,9 @@ func setSessionCookie(w http.ResponseWriter, token string) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-		// No MaxAge/Expires: session cookie, cleared when the browser closes.
+		// Persist across browser restarts up to the session's absolute TTL,
+		// so reopening the app goes straight to New Invoice instead of login.
+		MaxAge: int(sessionAbsoluteTTL.Seconds()),
 	})
 }
 
@@ -433,11 +435,11 @@ func usersCreateHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if err := updateUserName(existing.ID, firstName, lastName); err != nil {
-			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update worker: "+err.Error()), http.StatusSeeOther)
 			return
 		}
 		if err := updateUserRole(existing.ID, role); err != nil {
-			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update worker: "+err.Error()), http.StatusSeeOther)
 			return
 		}
 		if password != "" {
@@ -446,7 +448,7 @@ func usersCreateHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err := updateUserPassword(existing.ID, password); err != nil {
-				http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+				http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update worker: "+err.Error()), http.StatusSeeOther)
 				return
 			}
 		}
@@ -459,7 +461,7 @@ func usersCreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := createUser(username, password, role, firstName, lastName); err != nil {
-		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not create user: "+err.Error()), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not create worker: "+err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
