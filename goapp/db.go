@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 	technician_username TEXT NOT NULL DEFAULT '',
 	technician_signature TEXT NOT NULL DEFAULT '',
 	customer_signature TEXT NOT NULL DEFAULT '',
-	paid INTEGER NOT NULL DEFAULT 0,
+	payment_status TEXT NOT NULL DEFAULT 'unpaid',
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL
 );
@@ -113,9 +113,14 @@ func migrateSchema() error {
 			return err
 		}
 	}
-	if !existing["paid"] {
-		if _, err := db.Exec(`ALTER TABLE invoices ADD COLUMN paid INTEGER NOT NULL DEFAULT 0`); err != nil {
+	if !existing["payment_status"] {
+		if _, err := db.Exec(`ALTER TABLE invoices ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'`); err != nil {
 			return err
+		}
+		if existing["paid"] {
+			if _, err := db.Exec(`UPDATE invoices SET payment_status = 'paid' WHERE paid = 1`); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -339,22 +344,28 @@ func getClient(id int64) (Client, error) {
 
 // InvoiceSummary is a row in a client's invoice history table.
 type InvoiceSummary struct {
-	ID          int64
-	InvoiceDate string
-	Total       float64
-	JobCount    int
-	Paid        bool
+	ID            int64
+	InvoiceDate   string
+	Total         float64
+	JobCount      int
+	PaymentStatus string
 }
 
-func getClientInvoices(clientID int64) ([]InvoiceSummary, error) {
-	rows, err := db.Query(`
-		SELECT i.id, i.invoice_date, i.total, i.paid, COUNT(j.id) AS job_count
+func getClientInvoices(clientID int64, statusFilter string) ([]InvoiceSummary, error) {
+	query := `
+		SELECT i.id, i.invoice_date, i.total, i.payment_status, COUNT(j.id) AS job_count
 		FROM invoices i
 		LEFT JOIN invoice_jobs j ON j.invoice_id = i.id
 		WHERE i.client_id = ?
-		GROUP BY i.id
-		ORDER BY i.invoice_date DESC, i.id DESC
-	`, clientID)
+	`
+	args := []any{clientID}
+	if statusFilter != "" {
+		query += ` AND i.payment_status = ? `
+		args = append(args, statusFilter)
+	}
+	query += ` GROUP BY i.id ORDER BY i.invoice_date DESC, i.id DESC`
+
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +374,7 @@ func getClientInvoices(clientID int64) ([]InvoiceSummary, error) {
 	var out []InvoiceSummary
 	for rows.Next() {
 		var s InvoiceSummary
-		if err := rows.Scan(&s.ID, &s.InvoiceDate, &s.Total, &s.Paid, &s.JobCount); err != nil {
+		if err := rows.Scan(&s.ID, &s.InvoiceDate, &s.Total, &s.PaymentStatus, &s.JobCount); err != nil {
 			return nil, err
 		}
 		out = append(out, s)
@@ -371,9 +382,9 @@ func getClientInvoices(clientID int64) ([]InvoiceSummary, error) {
 	return out, rows.Err()
 }
 
-// setInvoicePaid updates an invoice's paid status.
-func setInvoicePaid(id int64, paid bool) error {
-	_, err := db.Exec(`UPDATE invoices SET paid = ? WHERE id = ?`, paid, id)
+// setInvoicePaymentStatus updates an invoice's payment status ("unpaid", "partial", or "paid").
+func setInvoicePaymentStatus(id int64, status string) error {
+	_, err := db.Exec(`UPDATE invoices SET payment_status = ? WHERE id = ?`, status, id)
 	return err
 }
 
@@ -383,13 +394,13 @@ func getInvoiceWithJobs(id int64) (InvoiceData, Client, error) {
 	var client Client
 	err := db.QueryRow(`
 		SELECT i.client_id, i.invoice_date, i.location, i.time_in, i.time_out,
-		       i.technician_username, i.technician_signature, i.customer_signature, i.paid,
+		       i.technician_username, i.technician_signature, i.customer_signature, i.payment_status,
 		       c.name, c.phone, c.email
 		FROM invoices i
 		JOIN clients c ON c.id = i.client_id
 		WHERE i.id = ?
 	`, id).Scan(&client.ID, &inv.InvoiceDate, &inv.Location, &inv.TimeIn, &inv.TimeOut,
-		&inv.TechnicianUsername, &inv.TechnicianSignature, &inv.CustomerSignature, &inv.Paid,
+		&inv.TechnicianUsername, &inv.TechnicianSignature, &inv.CustomerSignature, &inv.PaymentStatus,
 		&client.Name, &client.Phone, &client.Email)
 	if err != nil {
 		return inv, client, err

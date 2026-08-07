@@ -76,9 +76,30 @@
       tbody tr.invoice-row {
         cursor: pointer;
       }
+      tbody tr.row-unpaid {
+        background: #f8d7da;
+      }
+      tbody tr.row-unpaid:hover {
+        background: #f3c2c7;
+      }
+      tbody tr.row-partial {
+        background: #fff3cd;
+      }
+      tbody tr.row-partial:hover {
+        background: #ffe8a1;
+      }
+      tbody tr.row-paid {
+        background: #d1e7dd;
+      }
+      tbody tr.row-paid:hover {
+        background: #bcddcb;
+      }
       tbody td.num {
         text-align: right;
         font-weight: 600;
+      }
+      tbody td.center {
+        text-align: center;
       }
       a.invoice-link {
         color: var(--accent);
@@ -88,42 +109,43 @@
       a.invoice-link:hover {
         text-decoration: underline;
       }
-      .status-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-      }
-      .status-paid {
-        background: #d1e7dd;
-        color: #0f5132;
-      }
-      .status-unpaid {
-        background: #f8d7da;
-        color: #842029;
-      }
       .status-toggle {
         display: inline;
-        margin-left: 8px;
       }
-      .status-toggle button {
-        background: none;
-        border: none;
-        padding: 0;
-        color: var(--accent);
-        font-weight: 600;
+      .status-toggle select {
         font-size: 12px;
+        padding: 2px 4px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
         cursor: pointer;
-        text-decoration: underline;
       }
       .empty {
         color: #777;
         font-size: 14px;
         padding: 20px 0;
         text-align: center;
+      }
+      .status-filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      .status-filters a {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--primary);
+        background: var(--light-bg);
+        border: 1px solid var(--border);
+      }
+      .status-filters a.active {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
       }
       @media (max-width: 700px) {
         body {
@@ -158,11 +180,34 @@
 
       <div class="panel">
         <h1>Invoice History</h1>
+        <div class="status-filters">
+          <a
+            class="{{if eq .StatusFilter ""}}active{{end}}"
+            href="/clients/{{.Client.ID}}"
+            >All</a
+          >
+          <a
+            class="{{if eq .StatusFilter "unpaid"}}active{{end}}"
+            href="/clients/{{.Client.ID}}?status=unpaid"
+            >Unpaid</a
+          >
+          <a
+            class="{{if eq .StatusFilter "partial"}}active{{end}}"
+            href="/clients/{{.Client.ID}}?status=partial"
+            >Partial</a
+          >
+          <a
+            class="{{if eq .StatusFilter "paid"}}active{{end}}"
+            href="/clients/{{.Client.ID}}?status=paid"
+            >Paid</a
+          >
+        </div>
         {{if .Invoices}}
         <table>
           <thead>
             <tr>
               <th>Date</th>
+              <th style="text-align: center">Jobs</th>
               <th style="text-align: right">Total</th>
               <th>Status</th>
             </tr>
@@ -170,16 +215,13 @@
           <tbody>
             {{range .Invoices}}
             <tr
-              class="invoice-row"
+              class="invoice-row row-{{.PaymentStatus}}"
               onclick="window.location='/invoices/{{.ID}}/edit'"
             >
               <td>{{formatDate .InvoiceDate}}</td>
+              <td class="center">{{.JobCount}}</td>
               <td class="num">{{money .Total}}</td>
               <td onclick="event.stopPropagation()">
-                <span
-                  class="status-badge {{if .Paid}}status-paid{{else}}status-unpaid{{end}}"
-                  >{{if .Paid}}Paid{{else}}Unpaid{{end}}</span
-                >
                 {{if $.IsAdmin}}
                 <form
                   class="status-toggle"
@@ -196,10 +238,20 @@
                     name="redirect"
                     value="/clients/{{$.Client.ID}}"
                   />
-                  <button type="submit">
-                    {{if .Paid}}Unpaid{{else}}Paid{{end}}
-                  </button>
+                  <select name="payment_status" onchange="this.form.submit()">
+                    <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
+                      Unpaid
+                    </option>
+                    <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
+                      Partial
+                    </option>
+                    <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
+                      Paid
+                    </option>
+                  </select>
                 </form>
+                {{else}}
+                {{.PaymentStatus}}
                 {{end}}
               </td>
             </tr>

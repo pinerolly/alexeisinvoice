@@ -334,6 +334,10 @@
         background: #d1e7dd;
         color: #0f5132;
       }
+      .status-partial {
+        background: #fff3cd;
+        color: #664d03;
+      }
       .status-unpaid {
         background: #f8d7da;
         color: #842029;
@@ -342,15 +346,12 @@
         display: inline;
         margin-left: 8px;
       }
-      .status-toggle button {
-        background: none;
-        border: none;
-        padding: 0;
-        color: var(--accent);
-        font-weight: 600;
+      .status-toggle select {
         font-size: 12px;
+        padding: 2px 4px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
         cursor: pointer;
-        text-decoration: underline;
       }
     </style>
   </head>
@@ -417,9 +418,8 @@
           <div class="invoice-no">Invoice #{{.InvoiceID}}</div>
           <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
           <div class="invoice-no">
-            <span
-              class="status-badge {{if .Paid}}status-paid{{else}}status-unpaid{{end}}"
-              >{{if .Paid}}Paid{{else}}Unpaid{{end}}</span
+            <span class="status-badge status-{{.PaymentStatus}}"
+              >{{.PaymentStatus}}</span
             >
             {{if .IsAdmin}}
             <form
@@ -433,9 +433,17 @@
                 name="redirect"
                 value="/invoices/{{.InvoiceID}}/view"
               />
-              <button type="submit">
-                {{if .Paid}}Mark Unpaid{{else}}Mark Paid{{end}}
-              </button>
+              <select name="payment_status" onchange="this.form.submit()">
+                <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
+                  Unpaid
+                </option>
+                <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
+                  Partial
+                </option>
+                <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
+                  Paid
+                </option>
+              </select>
             </form>
             {{end}}
           </div>

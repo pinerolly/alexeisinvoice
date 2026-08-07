@@ -49,7 +49,7 @@ type InvoiceData struct {
 	TechnicianUsername  string `json:"technicianUsername"`
 	TechnicianSignature string `json:"technicianSignature"` // data:image/png;base64,... from the signature pad
 	CustomerSignature   string `json:"customerSignature"`   // data:image/png;base64,... from the signature pad
-	Paid                bool   `json:"paid"`
+	PaymentStatus       string `json:"paymentStatus"`       // "unpaid", "partial", or "paid"
 }
 
 var (
@@ -394,12 +394,13 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 
 // ClientDetailView is the template data for a single client's history page.
 type ClientDetailView struct {
-	Client      Client
-	Invoices    []InvoiceSummary
-	CSRFToken   string
-	IsAdmin     bool
-	Username    string
-	DisplayName string
+	Client       Client
+	Invoices     []InvoiceSummary
+	StatusFilter string
+	CSRFToken    string
+	IsAdmin      bool
+	Username     string
+	DisplayName  string
 }
 
 func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
@@ -413,12 +414,16 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	invoices, err := getClientInvoices(id)
+	statusFilter := r.URL.Query().Get("status")
+	if !validPaymentStatuses[statusFilter] {
+		statusFilter = ""
+	}
+	invoices, err := getClientInvoices(id, statusFilter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
+	view := ClientDetailView{Client: client, Invoices: invoices, StatusFilter: statusFilter, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
 	if err := mustTemplate("client_detail.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -485,19 +490,27 @@ func invoiceDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/clients/%d", client.ID), http.StatusSeeOther)
 }
 
-// invoicePaidHandler toggles an invoice's paid status (admin only).
+// validPaymentStatuses lists the allowed values for an invoice's payment_status.
+var validPaymentStatuses = map[string]bool{"unpaid": true, "partial": true, "paid": true}
+
+// invoicePaidHandler updates an invoice's payment status (admin only).
 func invoicePaidHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	inv, client, err := getInvoiceWithJobs(id)
+	_, client, err := getInvoiceWithJobs(id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	if err := setInvoicePaid(id, !inv.Paid); err != nil {
+	status := r.FormValue("payment_status")
+	if !validPaymentStatuses[status] {
+		http.Error(w, "invalid payment status", http.StatusBadRequest)
+		return
+	}
+	if err := setInvoicePaymentStatus(id, status); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
