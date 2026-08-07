@@ -65,8 +65,9 @@
         font-family: inherit;
       }
       textarea {
-        resize: vertical;
-        min-height: 90px;
+        resize: none;
+        overflow: hidden;
+        min-height: 38px;
       }
       .btn-row {
         display: flex;
@@ -289,6 +290,48 @@
         height: 40px;
         margin-bottom: 6px;
       }
+      .sig-block img.sig-preview {
+        display: block;
+        max-height: 70px;
+        max-width: 100%;
+        border-bottom: 1px solid #999;
+        margin-bottom: 6px;
+      }
+      .sig-pad-wrap {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--light-bg);
+        touch-action: none;
+        margin-bottom: 6px;
+      }
+      .sig-pad-wrap canvas {
+        display: block;
+        width: 100%;
+        height: 90px;
+        touch-action: none;
+      }
+      .sig-clear {
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0 0 6px 0;
+      }
+      .sidebar-sig {
+        margin: 16px 0;
+      }
+      .sidebar-sig > label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--text);
+      }
+      .sidebar-sig .sig-pad-wrap {
+        margin-bottom: 4px;
+      }
       .sig-label {
         font-size: 12px;
         color: #666;
@@ -376,7 +419,7 @@
       {{end}}
       <div class="form-panel">
         <h2>Edit Invoice</h2>
-        <form method="POST" action="/update">
+        <form method="POST" action="/update" id="invoiceForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <label for="invDate">Invoice Date</label>
           <input
@@ -450,12 +493,8 @@
               </div>
               <div class="job-fields">
                 <label>Description</label>
-                <textarea
-                  name="description"
-                  placeholder="Describe the work performed..."
-                >
-{{.Description}}</textarea
-                >
+                <!-- prettier-ignore -->
+                <textarea name="description" placeholder="Describe the work performed...">{{.Description}}</textarea>
                 <label>Price ($)</label>
                 <input
                   type="number"
@@ -509,18 +548,33 @@
             + Add Job
           </button>
 
-          <div class="btn-row">
-            <button
-              type="submit"
-              name="action"
-              value="save"
-              class="btn-primary"
+          <div class="sidebar-sig">
+            <label
+              >Customer Signature{{if .ClientName}}
+              ({{.ClientName}}){{end}}</label
             >
-              Save
+            <div class="sig-pad-wrap">
+              <canvas id="customerSigCanvas"></canvas>
+            </div>
+            <button
+              type="button"
+              id="customerSigClearBtn"
+              class="sig-clear"
+              onclick="clearCustomerSig()"
+            >
+              Clear
             </button>
+            <input
+              type="hidden"
+              name="customerSignature"
+              form="invoiceForm"
+              id="customerSignatureInput"
+              value="{{.CustomerSignature}}"
+            />
           </div>
+
           <button type="submit" name="action" value="print" class="btn-print">
-            Print / Save as PDF
+            Save / Print / Download
           </button>
         </form>
 
@@ -554,6 +608,9 @@
           </div>
           <div class="invoice-title">
             <h1>INVOICE</h1>
+            {{if gt .CurrentInvoiceID 0}}
+            <div class="invoice-no">Invoice #{{.CurrentInvoiceID}}</div>
+            {{end}}
             <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
           </div>
         </div>
@@ -604,12 +661,38 @@
 
         <div class="signatures">
           <div class="sig-block">
+            {{if .TechnicianSignaturePreview}}
+            <img
+              class="sig-preview"
+              src="{{signatureURL .TechnicianSignaturePreview}}"
+              alt="Technician signature"
+            />
+            {{else}}
             <div class="sig-line"></div>
+            {{end}}
             <div class="sig-label">Technician Signature</div>
           </div>
           <div class="sig-block">
-            <div class="sig-line"></div>
-            <div class="sig-label">Customer Signature</div>
+            <img
+              id="customerSigPreviewImg"
+              class="sig-preview"
+              src="{{signatureURL .CustomerSignature}}"
+              alt="Customer signature"
+              {{if
+              not
+              .CustomerSignature}}style="display:none"
+              {{end}}
+            />
+            <div
+              id="customerSigPreviewLine"
+              class="sig-line"
+              {{if
+              .CustomerSignature}}style="display:none"
+              {{end}}
+            ></div>
+            <div class="sig-label">
+              Customer Signature{{if .ClientName}} ({{.ClientName}}){{end}}
+            </div>
           </div>
         </div>
 
@@ -649,7 +732,10 @@
         const node = tpl.content.cloneNode(true);
         list.appendChild(node);
         const newItems = list.querySelectorAll(".job-item");
-        newItems[newItems.length - 1].querySelector("textarea").focus();
+        const newTextarea =
+          newItems[newItems.length - 1].querySelector("textarea");
+        autoGrow(newTextarea);
+        newTextarea.focus();
       }
 
       function removeJob(btn) {
@@ -664,6 +750,125 @@
         }
         item.remove();
       }
+
+      // Grows a description textarea to fit its content, shrinking back when text is removed.
+      function autoGrow(el) {
+        el.style.height = "auto";
+        el.style.height = el.scrollHeight + "px";
+      }
+
+      document.getElementById("jobsList").addEventListener("input", (e) => {
+        if (e.target.tagName === "TEXTAREA") autoGrow(e.target);
+      });
+      document
+        .querySelectorAll("#jobsList .job-fields textarea")
+        .forEach(autoGrow);
+
+      // Customer signature pad: mouse, stylus, and touch all draw via pointer events.
+      (function () {
+        const canvas = document.getElementById("customerSigCanvas");
+        const ctx = canvas.getContext("2d");
+        const input = document.getElementById("customerSignatureInput");
+        const clearBtn = document.getElementById("customerSigClearBtn");
+        const previewImg = document.getElementById("customerSigPreviewImg");
+        const previewLine = document.getElementById("customerSigPreviewLine");
+        let drawing = false;
+        let hasStroke = !!input.value;
+        let drawGeneration = 0;
+
+        // "Renew Signature" only shows once a signature is already saved, to make
+        // clear that clicking it wipes the existing one so the customer can sign again.
+        function updateClearBtnLabel() {
+          clearBtn.textContent = hasStroke ? "Renew Signature" : "Clear";
+        }
+        updateClearBtnLabel();
+
+        // Mirrors the pad onto the invoice preview's customer signature block.
+        function updatePreview() {
+          if (hasStroke) {
+            previewImg.src = canvas.toDataURL("image/png");
+            previewImg.style.display = "";
+            previewLine.style.display = "none";
+          } else {
+            previewImg.removeAttribute("src");
+            previewImg.style.display = "none";
+            previewLine.style.display = "";
+          }
+        }
+
+        function resizeCanvas() {
+          const rect = canvas.getBoundingClientRect();
+          const prev = hasStroke ? input.value || canvas.toDataURL() : null;
+          const generation = ++drawGeneration;
+          canvas.width = rect.width;
+          canvas.height = rect.height;
+          ctx.lineWidth = 2;
+          ctx.lineCap = "round";
+          ctx.strokeStyle = "#1c3d5a";
+          if (prev) {
+            const img = new Image();
+            img.onload = () => {
+              // Drop stale draws if the pad was cleared/renewed while this image was loading.
+              if (generation === drawGeneration && hasStroke) {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              }
+            };
+            img.src = prev;
+          }
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        function pointerPos(e) {
+          const rect = canvas.getBoundingClientRect();
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        canvas.addEventListener("pointerdown", (e) => {
+          drawing = true;
+          hasStroke = true;
+          updateClearBtnLabel();
+          canvas.setPointerCapture(e.pointerId);
+          const p = pointerPos(e);
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+        });
+        canvas.addEventListener("pointermove", (e) => {
+          if (!drawing) return;
+          const p = pointerPos(e);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        });
+        window.addEventListener("pointerup", () => {
+          if (drawing) {
+            drawing = false;
+            updatePreview();
+          }
+        });
+
+        window.clearCustomerSig = function () {
+          drawGeneration++;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          hasStroke = false;
+          input.value = "";
+          updateClearBtnLabel();
+          updatePreview();
+        };
+
+        document
+          .getElementById("invoiceForm")
+          .addEventListener("submit", (e) => {
+            const action = e.submitter && e.submitter.value;
+            if (action === "print") {
+              if (!hasStroke) {
+                e.preventDefault();
+                alert("Please have the customer sign before printing/saving.");
+                return;
+              }
+              input.value = canvas.toDataURL("image/png");
+            }
+          });
+      })();
     </script>
   </body>
 </html>

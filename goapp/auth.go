@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -191,6 +192,24 @@ func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+// requireSignature blocks access to invoice pages until the logged-in user
+// has saved a signature on their account, redirecting them there otherwise.
+func requireSignature(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, s := getSession(r)
+		if s == nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		user, err := getUserByUsername(s.username)
+		if err != nil || user.Signature == "" {
+			http.Redirect(w, r, "/account/signature?missing=1", http.StatusSeeOther)
+			return
+		}
+		next(w, r)
+	}
+}
+
 // requireCSRF validates the csrf_token form field on state-changing POST
 // requests against the current session's token.
 func requireCSRF(next http.HandlerFunc) http.HandlerFunc {
@@ -303,6 +322,20 @@ func currentUsername(r *http.Request) string {
 	return s.username
 }
 
+// currentDisplayName returns the logged-in user's full name (falling back to
+// their username), used for the nav bar badge.
+func currentDisplayName(r *http.Request) string {
+	username := currentUsername(r)
+	if username == "" {
+		return ""
+	}
+	user, err := getUserByUsername(username)
+	if err != nil {
+		return username
+	}
+	return user.FullName()
+}
+
 // accountPasswordHandler updates the logged-in admin's own password, then
 // redirects back to the Workers page (which now hosts the "My Account" panel).
 func accountPasswordHandler(w http.ResponseWriter, r *http.Request) {
@@ -342,6 +375,7 @@ type UsersPageView struct {
 	CSRFToken   string
 	Error       string
 	Username    string
+	DisplayName string
 	AcctError   string
 	AcctSuccess bool
 	IsAdmin     bool
@@ -358,28 +392,73 @@ func usersListHandler(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:   currentCSRFToken(r),
 		Error:       r.URL.Query().Get("error"),
 		Username:    currentUsername(r),
+		DisplayName: currentDisplayName(r),
 		AcctError:   r.URL.Query().Get("accterror"),
 		AcctSuccess: r.URL.Query().Get("acctsuccess") == "1",
-		IsAdmin:     true,
+		IsAdmin:     isAdmin(r),
 	}
 	if err := mustTemplate("users.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
+// usersCreateHandler adds a brand-new worker, or, if the given username
+// already belongs to an existing account, updates that account's name,
+// role, and (if provided) password instead of erroring out on a duplicate.
 func usersCreateHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
+	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	role := r.FormValue("role")
+	firstName := r.FormValue("first_name")
+	lastName := r.FormValue("last_name")
 	if role != "admin" {
 		role = "user"
 	}
 
-	if username == "" || len(password) < 4 {
+	if username == "" {
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Username is required."), http.StatusSeeOther)
+		return
+	}
+
+	if existing, err := getUserByUsername(username); err == nil {
+		if existing.Role == "admin" && role != "admin" {
+			adminCount, err := countAdmins()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if adminCount <= 1 {
+				http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Cannot demote the last remaining admin."), http.StatusSeeOther)
+				return
+			}
+		}
+		if err := updateUserName(existing.ID, firstName, lastName); err != nil {
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+		if err := updateUserRole(existing.ID, role); err != nil {
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+			return
+		}
+		if password != "" {
+			if len(password) < 4 {
+				http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Password must be at least 4 characters."), http.StatusSeeOther)
+				return
+			}
+			if err := updateUserPassword(existing.ID, password); err != nil {
+				http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not update user: "+err.Error()), http.StatusSeeOther)
+				return
+			}
+		}
+		http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		return
+	}
+
+	if len(password) < 4 {
 		http.Redirect(w, r, "/admin/users?error=Username+required+and+password+must+be+at+least+4+characters.", http.StatusSeeOther)
 		return
 	}
-	if err := createUser(username, password, role); err != nil {
+	if err := createUser(username, password, role, firstName, lastName); err != nil {
 		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not create user: "+err.Error()), http.StatusSeeOther)
 		return
 	}
@@ -413,6 +492,63 @@ func usersDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := deleteUser(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+// usersRoleHandler promotes/demotes a worker between "admin" and "user".
+func usersRoleHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	user, err := getUserByID(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	newRole := r.FormValue("role")
+	if newRole != "admin" && newRole != "user" {
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Invalid role."), http.StatusSeeOther)
+		return
+	}
+	if user.Username == currentUsername(r) {
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("You cannot change your own role."), http.StatusSeeOther)
+		return
+	}
+	if user.Role == "admin" && newRole != "admin" {
+		adminCount, err := countAdmins()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if adminCount <= 1 {
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Cannot demote the last remaining admin."), http.StatusSeeOther)
+			return
+		}
+	}
+	if err := updateUserRole(id, newRole); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+// usersNameHandler updates a worker's first/last name.
+func usersNameHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := getUserByID(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := updateUserName(id, r.FormValue("first_name"), r.FormValue("last_name")); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -1,0 +1,193 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Signature - Electroclima Pro Services, LLC</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        padding: 20px;
+      }
+      .page {
+        max-width: 600px;
+        margin: auto;
+      }
+      .panel {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+      }
+      h1 {
+        font-size: 18px;
+        color: var(--primary);
+        margin-top: 0;
+      }
+      p.hint {
+        font-size: 13px;
+        color: #666;
+      }
+      .notice {
+        background: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+        border-radius: 4px;
+        padding: 10px 14px;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      .error {
+        background: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      .sig-pad-wrap {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--light-bg);
+        touch-action: none;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 180px;
+        touch-action: none;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        flex: 1;
+      }
+      .btn-secondary {
+        background: var(--light-bg);
+        color: var(--primary);
+        border: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    {{template "nav" .}}
+    <div class="page">
+      <div class="panel">
+        <h1>My Signature</h1>
+        {{if .Missing}}
+        <div class="notice">
+          You need to save a signature before you can create or view invoices.
+        </div>
+        {{end}}
+        <p class="hint">
+          Draw your signature below with a mouse, stylus, or finger. It will be
+          stamped on every invoice you finalize, under your username
+          ({{.Username}}).
+        </p>
+        <form method="POST" action="/account/signature" id="sigForm">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <input type="hidden" name="signature" id="signatureInput" />
+          <div class="sig-pad-wrap">
+            <canvas id="sigCanvas" data-existing="{{.Signature}}"></canvas>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn-secondary" onclick="clearPad()">
+              Clear
+            </button>
+            <button type="submit" class="btn-primary">Save Signature</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("sigCanvas");
+      const ctx = canvas.getContext("2d");
+      let drawing = false;
+      let hasStroke = false;
+      const existingSignature = canvas.dataset.existing || "";
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const prev = hasStroke ? canvas.toDataURL() : existingSignature;
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#1c3d5a";
+        if (prev) {
+          const img = new Image();
+          img.onload = () =>
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          img.src = prev;
+          hasStroke = true;
+        }
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      function pointerPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
+      canvas.addEventListener("pointerdown", (e) => {
+        drawing = true;
+        hasStroke = true;
+        canvas.setPointerCapture(e.pointerId);
+        const p = pointerPos(e);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!drawing) return;
+        const p = pointerPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      });
+      window.addEventListener("pointerup", () => (drawing = false));
+
+      function clearPad() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        hasStroke = false;
+      }
+
+      document.getElementById("sigForm").addEventListener("submit", (e) => {
+        if (!hasStroke) {
+          e.preventDefault();
+          alert("Please sign before saving.");
+          return;
+        }
+        document.getElementById("signatureInput").value =
+          canvas.toDataURL("image/png");
+      });
+    </script>
+  </body>
+</html>

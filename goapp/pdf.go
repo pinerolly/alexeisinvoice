@@ -3,20 +3,23 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/go-pdf/fpdf"
 )
 
 const (
-	pdfPrimaryR, pdfPrimaryG, pdfPrimaryB = 28, 61, 90  // #1c3d5a
-	pdfAccentR, pdfAccentG, pdfAccentB    = 46, 134, 171 // #2e86ab
+	pdfPrimaryR, pdfPrimaryG, pdfPrimaryB = 28, 61, 90    // #1c3d5a
+	pdfAccentR, pdfAccentG, pdfAccentB    = 46, 134, 171  // #2e86ab
 	pdfLightR, pdfLightG, pdfLightB       = 244, 247, 249 // #f4f7f9
 )
 
 // generateInvoicePDF renders an invoice as a PDF document matching the
-// on-screen layout, returning the raw PDF bytes.
-func generateInvoicePDF(inv InvoiceData, client Client, title string) ([]byte, error) {
+// on-screen layout, returning the raw PDF bytes. invoiceID is the permanent,
+// never-reused invoice number (the DB row's autoincrement id).
+func generateInvoicePDF(inv InvoiceData, client Client, title string, invoiceID int64) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetTitle(title, false)
 	pdf.SetMargins(18, 18, 18)
@@ -37,9 +40,12 @@ func generateInvoicePDF(inv InvoiceData, client Client, title string) ([]byte, e
 	pdf.SetTextColor(80, 80, 80)
 	pdf.CellFormat(contentW*0.6, 5, "10530 NW 35 CT, Miami, FL 33147", "", 0, "L", false, 0, "")
 	pdf.SetTextColor(100, 100, 100)
-	pdf.CellFormat(contentW*0.4, 5, "Date: "+formatDateDisplay(inv.InvoiceDate), "", 1, "R", false, 0, "")
+	pdf.CellFormat(contentW*0.4, 5, fmt.Sprintf("Invoice #%d", invoiceID), "", 1, "R", false, 0, "")
 	pdf.SetTextColor(80, 80, 80)
 	pdf.CellFormat(contentW, 5, "Tel: 786 389 3330  |  Email: alexoptano@yahoo.com", "", 1, "L", false, 0, "")
+	pdf.SetTextColor(100, 100, 100)
+	pdf.CellFormat(contentW*0.6, 5, "", "", 0, "L", false, 0, "")
+	pdf.CellFormat(contentW*0.4, 5, "Date: "+formatDateDisplay(inv.InvoiceDate), "", 1, "R", false, 0, "")
 
 	pdf.SetDrawColor(pdfPrimaryR, pdfPrimaryG, pdfPrimaryB)
 	pdf.SetLineWidth(0.8)
@@ -108,18 +114,30 @@ func generateInvoicePDF(inv InvoiceData, client Client, title string) ([]byte, e
 	pdf.CellFormat(40, 8, money(totalOf(inv.Jobs)), "", 1, "R", false, 0, "")
 
 	// Signatures.
-	pdf.Ln(16)
-	sigY := pdf.GetY()
+	pdf.Ln(10)
 	sigW := contentW/2 - 5
+	const sigImgMaxH = 16.0
+	imgTop := pdf.GetY()
+	drawSignatureImage(pdf, "sig-tech", inv.TechnicianSignature, 18, imgTop, sigW, sigImgMaxH)
+	drawSignatureImage(pdf, "sig-cust", inv.CustomerSignature, 18+sigW+10, imgTop, sigW, sigImgMaxH)
+	sigY := imgTop + sigImgMaxH + 2
 	pdf.SetDrawColor(150, 150, 150)
 	pdf.Line(18, sigY, 18+sigW, sigY)
 	pdf.Line(18+sigW+10, sigY, 18+sigW+10+sigW, sigY)
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(100, 100, 100)
+	techLabel := "TECHNICIAN SIGNATURE"
+	if inv.TechnicianUsername != "" {
+		techLabel += " (" + inv.TechnicianUsername + ")"
+	}
+	custLabel := "CUSTOMER SIGNATURE"
+	if inv.ClientName != "" {
+		custLabel += " (" + inv.ClientName + ")"
+	}
 	pdf.SetXY(18, sigY+1)
-	pdf.CellFormat(sigW, 5, "TECHNICIAN SIGNATURE", "", 0, "L", false, 0, "")
+	pdf.CellFormat(sigW, 5, techLabel, "", 0, "L", false, 0, "")
 	pdf.SetXY(18+sigW+10, sigY+1)
-	pdf.CellFormat(sigW, 5, "CUSTOMER SIGNATURE", "", 1, "L", false, 0, "")
+	pdf.CellFormat(sigW, 5, custLabel, "", 1, "L", false, 0, "")
 
 	// Footer note.
 	pdf.SetY(-25)
@@ -151,6 +169,45 @@ func formatTimeDisplayOrDash(t string) string {
 		return "-"
 	}
 	return formatTimeDisplay(t)
+}
+
+// drawSignatureImage decodes a "data:image/png;base64,..." signature and
+// places it left-aligned above (x, y), scaled to fit within maxW x maxH.
+func drawSignatureImage(pdf *fpdf.Fpdf, name, dataURL string, x, y, maxW, maxH float64) {
+	if !isValidPNGDataURL(dataURL) {
+		return
+	}
+	idx := strings.Index(dataURL, ",")
+	raw, err := base64.StdEncoding.DecodeString(dataURL[idx+1:])
+	if err != nil {
+		return
+	}
+	opts := fpdf.ImageOptions{ImageType: "png"}
+	info := pdf.RegisterImageOptionsReader(name, opts, bytes.NewReader(raw))
+	if info == nil {
+		return
+	}
+	w, h := info.Extent()
+	if w <= 0 || h <= 0 {
+		return
+	}
+	scale := maxW / w
+	if h*scale > maxH {
+		scale = maxH / h
+	}
+	pdf.ImageOptions(name, x, y, w*scale, h*scale, false, opts, 0, "")
+}
+
+// isValidPNGDataURL reports whether s is a well-formed "data:image/png;base64,..."
+// URL: the only signature format the app produces (via canvas.toDataURL) and
+// accepts, so this doubles as validation before trusting it as a safe URL.
+func isValidPNGDataURL(s string) bool {
+	const prefix = "data:image/png;base64,"
+	if !strings.HasPrefix(s, prefix) {
+		return false
+	}
+	_, err := base64.StdEncoding.DecodeString(s[len(prefix):])
+	return err == nil
 }
 
 func drawInfoBox(pdf *fpdf.Fpdf, x, y, w float64, heading string, lines []string) {

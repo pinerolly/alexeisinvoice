@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/invoiceapp.exe ."
+  entrypoint = "./tmp/invoiceapp.exe"
+  include_ext = ["go", "html"]
+  exclude_dir = ["tmp"]
+  exclude_file = ["invoice-data.json", "invoices.db"]
+  exclude_regex = ["invoices.db-.*"]
+  delay = 200
+
+[log]
+  time = false
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = true

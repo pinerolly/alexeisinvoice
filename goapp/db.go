@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS invoices (
 	time_in TEXT NOT NULL DEFAULT '',
 	time_out TEXT NOT NULL DEFAULT '',
 	total REAL NOT NULL DEFAULT 0,
+	technician_username TEXT NOT NULL DEFAULT '',
+	technician_signature TEXT NOT NULL DEFAULT '',
+	customer_signature TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL
 );
@@ -50,6 +53,7 @@ CREATE TABLE IF NOT EXISTS users (
 	username TEXT NOT NULL UNIQUE,
 	password_hash TEXT NOT NULL,
 	role TEXT NOT NULL DEFAULT 'user',
+	signature TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL
 );
 `
@@ -68,7 +72,77 @@ func initDB() error {
 		return err
 	}
 	_, err = db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+	return migrateSchema()
+}
+
+// migrateSchema adds columns introduced after a database was first created,
+// since "CREATE TABLE IF NOT EXISTS" doesn't alter existing tables.
+func migrateSchema() error {
+	rows, err := db.Query(`PRAGMA table_info(invoices)`)
+	if err != nil {
+		return err
+	}
+	existing := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		existing[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	columns := []string{"technician_username", "technician_signature", "customer_signature"}
+	for _, col := range columns {
+		if existing[col] {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf(`ALTER TABLE invoices ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col)); err != nil {
+			return err
+		}
+	}
+
+	urows, err := db.Query(`PRAGMA table_info(users)`)
+	if err != nil {
+		return err
+	}
+	userCols := map[string]bool{}
+	for urows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := urows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			urows.Close()
+			return err
+		}
+		userCols[name] = true
+	}
+	if err := urows.Err(); err != nil {
+		return err
+	}
+	urows.Close()
+	for _, col := range []string{"signature", "first_name", "last_name"} {
+		if userCols[col] {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf(`ALTER TABLE users ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var nonDigits = regexp.MustCompile(`\D+`)
@@ -165,9 +239,10 @@ func saveInvoiceRecord(invoiceID int64, clientID int64, draft InvoiceData) (int6
 
 	if invoiceID == 0 {
 		res, err := tx.Exec(
-			`INSERT INTO invoices (client_id, invoice_date, location, time_in, time_out, total, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			clientID, draft.InvoiceDate, draft.Location, draft.TimeIn, draft.TimeOut, total, now, now,
+			`INSERT INTO invoices (client_id, invoice_date, location, time_in, time_out, total, technician_username, technician_signature, customer_signature, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			clientID, draft.InvoiceDate, draft.Location, draft.TimeIn, draft.TimeOut, total,
+			draft.TechnicianUsername, draft.TechnicianSignature, draft.CustomerSignature, now, now,
 		)
 		if err != nil {
 			return 0, err
@@ -178,9 +253,11 @@ func saveInvoiceRecord(invoiceID int64, clientID int64, draft InvoiceData) (int6
 		}
 	} else {
 		if _, err := tx.Exec(
-			`UPDATE invoices SET client_id = ?, invoice_date = ?, location = ?, time_in = ?, time_out = ?, total = ?, updated_at = ?
+			`UPDATE invoices SET client_id = ?, invoice_date = ?, location = ?, time_in = ?, time_out = ?, total = ?,
+			 technician_username = ?, technician_signature = ?, customer_signature = ?, updated_at = ?
 			 WHERE id = ?`,
-			clientID, draft.InvoiceDate, draft.Location, draft.TimeIn, draft.TimeOut, total, now, invoiceID,
+			clientID, draft.InvoiceDate, draft.Location, draft.TimeIn, draft.TimeOut, total,
+			draft.TechnicianUsername, draft.TechnicianSignature, draft.CustomerSignature, now, invoiceID,
 		); err != nil {
 			return 0, err
 		}
@@ -206,11 +283,11 @@ func saveInvoiceRecord(invoiceID int64, clientID int64, draft InvoiceData) (int6
 
 // ClientSummary is a row in the clients list page.
 type ClientSummary struct {
-	ID           int64
-	Name         string
-	Phone        string
-	Email        string
-	InvoiceCount int
+	ID            int64
+	Name          string
+	Phone         string
+	Email         string
+	InvoiceCount  int
 	LifetimeTotal float64
 }
 
@@ -293,11 +370,13 @@ func getInvoiceWithJobs(id int64) (InvoiceData, Client, error) {
 	var client Client
 	err := db.QueryRow(`
 		SELECT i.client_id, i.invoice_date, i.location, i.time_in, i.time_out,
+		       i.technician_username, i.technician_signature, i.customer_signature,
 		       c.name, c.phone, c.email
 		FROM invoices i
 		JOIN clients c ON c.id = i.client_id
 		WHERE i.id = ?
 	`, id).Scan(&client.ID, &inv.InvoiceDate, &inv.Location, &inv.TimeIn, &inv.TimeOut,
+		&inv.TechnicianUsername, &inv.TechnicianSignature, &inv.CustomerSignature,
 		&client.Name, &client.Phone, &client.Email)
 	if err != nil {
 		return inv, client, err
@@ -346,12 +425,40 @@ func clientTitle(name, invoiceDate string) string {
 	return fmt.Sprintf("%s_%s", slugify(name), invoiceDate)
 }
 
+// deleteInvoiceRecord removes an invoice and its jobs (via ON DELETE CASCADE).
+func deleteInvoiceRecord(id int64) error {
+	res, err := db.Exec(`DELETE FROM invoices WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 // User is a login account. Role is either "admin" or "user".
 type User struct {
 	ID           int64
 	Username     string
 	PasswordHash string
 	Role         string
+	Signature    string // data:image/png;base64,... saved once from the account page
+	FirstName    string
+	LastName     string
+}
+
+// FullName returns "First Last", falling back to the username if no name is set.
+func (u User) FullName() string {
+	name := strings.TrimSpace(u.FirstName + " " + u.LastName)
+	if name == "" {
+		return u.Username
+	}
+	return name
 }
 
 // seedDefaultAdmin creates the built-in admin/admin account the first time
@@ -365,17 +472,17 @@ func seedDefaultAdmin() error {
 	if count > 0 {
 		return nil
 	}
-	return createUser("admin", "admin", "admin")
+	return createUser("admin", "admin", "admin", "", "")
 }
 
-func createUser(username, plainPassword, role string) error {
+func createUser(username, plainPassword, role, firstName, lastName string) error {
 	hash, err := bcryptHash(plainPassword)
 	if err != nil {
 		return err
 	}
 	_, err = db.Exec(
-		`INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)`,
-		strings.TrimSpace(username), hash, role, time.Now().Format(time.RFC3339),
+		`INSERT INTO users (username, password_hash, role, created_at, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?)`,
+		strings.TrimSpace(username), hash, role, time.Now().Format(time.RFC3339), strings.TrimSpace(firstName), strings.TrimSpace(lastName),
 	)
 	return err
 }
@@ -383,21 +490,28 @@ func createUser(username, plainPassword, role string) error {
 func getUserByUsername(username string) (User, error) {
 	var u User
 	err := db.QueryRow(
-		`SELECT id, username, password_hash, role FROM users WHERE username = ?`, username,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role)
+		`SELECT id, username, password_hash, role, signature, first_name, last_name FROM users WHERE username = ?`, username,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Signature, &u.FirstName, &u.LastName)
 	return u, err
 }
 
 func getUserByID(id int64) (User, error) {
 	var u User
 	err := db.QueryRow(
-		`SELECT id, username, password_hash, role FROM users WHERE id = ?`, id,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role)
+		`SELECT id, username, password_hash, role, signature, first_name, last_name FROM users WHERE id = ?`, id,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Signature, &u.FirstName, &u.LastName)
 	return u, err
 }
 
+// setUserSignature saves the account-level signature image used on invoices
+// this user finalizes.
+func setUserSignature(username, signature string) error {
+	_, err := db.Exec(`UPDATE users SET signature = ? WHERE username = ?`, signature, username)
+	return err
+}
+
 func listUsers() ([]User, error) {
-	rows, err := db.Query(`SELECT id, username, password_hash, role FROM users ORDER BY username`)
+	rows, err := db.Query(`SELECT id, username, password_hash, role, signature, first_name, last_name FROM users ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +519,7 @@ func listUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.Signature, &u.FirstName, &u.LastName); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -425,6 +539,18 @@ func updateUserPassword(id int64, plainPassword string) error {
 		return err
 	}
 	_, err = db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, id)
+	return err
+}
+
+// updateUserRole promotes/demotes a user between "admin" and "user".
+func updateUserRole(id int64, role string) error {
+	_, err := db.Exec(`UPDATE users SET role = ? WHERE id = ?`, role, id)
+	return err
+}
+
+// updateUserName sets a user's first/last name shown in the nav bar.
+func updateUserName(id int64, firstName, lastName string) error {
+	_, err := db.Exec(`UPDATE users SET first_name = ?, last_name = ? WHERE id = ?`, strings.TrimSpace(firstName), strings.TrimSpace(lastName), id)
 	return err
 }
 

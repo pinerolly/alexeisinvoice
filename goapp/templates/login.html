@@ -57,6 +57,34 @@
         font-size: 14px;
         font-family: inherit;
       }
+      .password-field {
+        position: relative;
+      }
+      .password-field input {
+        padding-right: 34px;
+      }
+      .password-toggle {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: auto;
+        margin: 0;
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        line-height: 0;
+        color: #777;
+      }
+      .password-toggle:hover {
+        color: var(--accent);
+      }
+      .password-toggle svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
       button {
         width: 100%;
         margin-top: 20px;
@@ -98,16 +126,49 @@
         />
 
         <label for="password">Password</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          autocomplete="current-password"
-          required
-        />
+        <div class="password-field">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            aria-label="Show password"
+            aria-pressed="false"
+            onclick="togglePasswordVisibility(this)"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
 
         <button type="submit">Log In</button>
       </form>
     </div>
+    <script>
+      function togglePasswordVisibility(btn) {
+        const input = btn.previousElementSibling;
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        btn.setAttribute("aria-pressed", String(!showing));
+        btn.setAttribute(
+          "aria-label",
+          showing ? "Show password" : "Hide password",
+        );
+      }
+    </script>
   </body>
 </html>

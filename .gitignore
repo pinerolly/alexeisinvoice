@@ -4,5 +4,10 @@ goapp/invoices.db
 goapp/*.db
 goapp/.env
 goapp/invoiceapp-linux-amd64
+goapp/tmp/
+goapp/build-errors.log
+goapp/cookies.txt
+cookies.txt
 .env
 *.exe
+/tmp/

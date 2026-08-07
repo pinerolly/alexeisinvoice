@@ -36,16 +36,19 @@ type Job struct {
 
 // InvoiceData holds all editable fields of the invoice.
 type InvoiceData struct {
-	InvoiceDate      string `json:"invoiceDate"` // yyyy-mm-dd
-	ClientName       string `json:"clientName"`
-	Phone            string `json:"phone"`
-	Email            string `json:"email"`
-	Location         string `json:"location"`
-	TimeIn           string `json:"timeIn"` // HH:MM 24h
-	TimeOut          string `json:"timeOut"`
-	Jobs             []Job  `json:"jobs"`
-	NextJobID        int    `json:"nextJobId"`
-	CurrentInvoiceID int64  `json:"currentInvoiceId"` // 0 = new/unsaved draft
+	InvoiceDate         string `json:"invoiceDate"` // yyyy-mm-dd
+	ClientName          string `json:"clientName"`
+	Phone               string `json:"phone"`
+	Email               string `json:"email"`
+	Location            string `json:"location"`
+	TimeIn              string `json:"timeIn"` // HH:MM 24h
+	TimeOut             string `json:"timeOut"`
+	Jobs                []Job  `json:"jobs"`
+	NextJobID           int    `json:"nextJobId"`
+	CurrentInvoiceID    int64  `json:"currentInvoiceId"` // 0 = new/unsaved draft
+	TechnicianUsername  string `json:"technicianUsername"`
+	TechnicianSignature string `json:"technicianSignature"` // data:image/png;base64,... from the signature pad
+	CustomerSignature   string `json:"customerSignature"`   // data:image/png;base64,... from the signature pad
 }
 
 var (
@@ -166,11 +169,22 @@ func loadDotEnv(path string) {
 }
 
 var funcMap = template.FuncMap{
-	"formatDate": formatDateDisplay,
-	"formatTime": formatTimeDisplay,
-	"money":      money,
-	"priceInput": priceInput,
-	"total":      totalOf,
+	"formatDate":   formatDateDisplay,
+	"formatTime":   formatTimeDisplay,
+	"money":        money,
+	"priceInput":   priceInput,
+	"total":        totalOf,
+	"signatureURL": signatureURL,
+}
+
+// signatureURL marks a validated "data:image/png;base64,..." signature as a
+// safe URL so html/template's URL sanitizer (which blocks non-http(s)/mailto
+// schemes by default) doesn't replace it with "#ZgotmplZ" in <img src>.
+func signatureURL(dataURL string) template.URL {
+	if !isValidPNGDataURL(dataURL) {
+		return ""
+	}
+	return template.URL(dataURL)
 }
 
 func mustTemplate(name string) *template.Template {
@@ -192,13 +206,24 @@ func currentCSRFToken(r *http.Request) string {
 // EditPageView is the template data for the main editor page.
 type EditPageView struct {
 	InvoiceData
-	CSRFToken string
-	IsAdmin   bool
+	CSRFToken                  string
+	IsAdmin                    bool
+	Username                   string
+	DisplayName                string
+	TechnicianSignaturePreview string
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+	technician, _ := getUserByUsername(currentUsername(r))
 	mu.Lock()
-	view := EditPageView{InvoiceData: data, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
+	view := EditPageView{
+		InvoiceData:                data,
+		CSRFToken:                  currentCSRFToken(r),
+		IsAdmin:                    isAdmin(r),
+		Username:                   currentUsername(r),
+		DisplayName:                currentDisplayName(r),
+		TechnicianSignaturePreview: technician.Signature,
+	}
 	mu.Unlock()
 	if err := mustTemplate("edit.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -216,6 +241,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	data.Location = r.FormValue("location")
 	data.TimeIn = r.FormValue("timeIn")
 	data.TimeOut = r.FormValue("timeOut")
+	data.CustomerSignature = r.FormValue("customerSignature")
 
 	descs := r.Form["description"]
 	prices := r.Form["price"]
@@ -261,6 +287,17 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if action == "print" {
+		if data.CustomerSignature == "" {
+			http.Error(w, "Customer signature is required before printing.", http.StatusBadRequest)
+			return
+		}
+		technician, err := getUserByUsername(currentUsername(r))
+		if err != nil || technician.Signature == "" {
+			http.Redirect(w, r, "/account/signature", http.StatusSeeOther)
+			return
+		}
+		data.TechnicianUsername = technician.Username
+		data.TechnicianSignature = technician.Signature
 		clientID, err := findOrCreateClient(data.ClientName, data.Phone, data.Email)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -293,12 +330,52 @@ func resetHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// SignaturePageView is the template data for the one-time account signature setup page.
+type SignaturePageView struct {
+	CSRFToken   string
+	Username    string
+	DisplayName string
+	IsAdmin     bool
+	Missing     bool
+	Signature   string
+}
+
+func accountSignatureHandler(w http.ResponseWriter, r *http.Request) {
+	technician, _ := getUserByUsername(currentUsername(r))
+	view := SignaturePageView{
+		CSRFToken:   currentCSRFToken(r),
+		Username:    currentUsername(r),
+		DisplayName: currentDisplayName(r),
+		IsAdmin:     isAdmin(r),
+		Missing:     r.URL.Query().Get("missing") == "1",
+		Signature:   technician.Signature,
+	}
+	if err := mustTemplate("account_signature.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func accountSignatureSaveHandler(w http.ResponseWriter, r *http.Request) {
+	sig := r.FormValue("signature")
+	if sig == "" {
+		http.Redirect(w, r, "/account/signature?missing=1", http.StatusSeeOther)
+		return
+	}
+	if err := setUserSignature(currentUsername(r), sig); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 // ClientsListView is the template data for the clients list page.
 type ClientsListView struct {
-	Clients   []ClientSummary
-	Search    string
-	CSRFToken string
-	IsAdmin   bool
+	Clients     []ClientSummary
+	Search      string
+	CSRFToken   string
+	IsAdmin     bool
+	Username    string
+	DisplayName string
 }
 
 func clientsListHandler(w http.ResponseWriter, r *http.Request) {
@@ -308,7 +385,7 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
+	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
 	if err := mustTemplate("clients_list.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -316,10 +393,12 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 
 // ClientDetailView is the template data for a single client's history page.
 type ClientDetailView struct {
-	Client    Client
-	Invoices  []InvoiceSummary
-	CSRFToken string
-	IsAdmin   bool
+	Client      Client
+	Invoices    []InvoiceSummary
+	CSRFToken   string
+	IsAdmin     bool
+	Username    string
+	DisplayName string
 }
 
 func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
@@ -338,7 +417,7 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
+	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
 	if err := mustTemplate("client_detail.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -347,13 +426,15 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 // InvoiceViewPage is the template data for the read-only historical invoice page.
 type InvoiceViewPage struct {
 	InvoiceData
-	InvoiceID  int64
-	ClientID   int64
-	Title      string
-	CSRFToken  string
-	EmailSent  bool
-	EmailError string
-	IsAdmin    bool
+	InvoiceID   int64
+	ClientID    int64
+	Title       string
+	CSRFToken   string
+	EmailSent   bool
+	EmailError  string
+	IsAdmin     bool
+	Username    string
+	DisplayName string
 }
 
 func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
@@ -376,10 +457,31 @@ func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
 		EmailSent:   r.URL.Query().Get("emailed") == "1",
 		EmailError:  r.URL.Query().Get("emailerror"),
 		IsAdmin:     isAdmin(r),
+		Username:    currentUsername(r),
+		DisplayName: currentDisplayName(r),
 	}
 	if err := mustTemplate("invoice_view.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// invoiceDeleteHandler permanently removes an invoice and its jobs.
+func invoiceDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	_, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := deleteInvoiceRecord(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/clients/%d", client.ID), http.StatusSeeOther)
 }
 
 // invoiceDownloadHandler streams the invoice as a downloadable PDF.
@@ -395,7 +497,7 @@ func invoiceDownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	title := clientTitle(client.Name, inv.InvoiceDate)
-	pdfBytes, err := generateInvoicePDF(inv, client, title)
+	pdfBytes, err := generateInvoicePDF(inv, client, title, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -429,7 +531,7 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	title := clientTitle(client.Name, inv.InvoiceDate)
-	pdfBytes, err := generateInvoicePDF(inv, client, title)
+	pdfBytes, err := generateInvoicePDF(inv, client, title, id)
 	if err != nil {
 		redirectWithError("Could not generate the PDF.")
 		return
@@ -503,19 +605,24 @@ func main() {
 	mux.HandleFunc("POST /login", loginHandler)
 	mux.HandleFunc("POST /logout", logoutHandler)
 
-	mux.HandleFunc("GET /{$}", requireAuth(indexHandler))
-	mux.HandleFunc("POST /update", requireCSRF(updateHandler))
-	mux.HandleFunc("POST /reset", requireCSRF(resetHandler))
-	mux.HandleFunc("GET /clients", requireAuth(clientsListHandler))
-	mux.HandleFunc("GET /clients/{id}", requireAuth(clientDetailHandler))
-	mux.HandleFunc("GET /invoices/{id}/view", requireAuth(invoiceViewHandler))
-	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(invoiceDownloadHandler))
-	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(invoiceEmailHandler))
-	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(invoiceEditHandler))
-	mux.HandleFunc("POST /account", requireAdmin(requireCSRF(accountPasswordHandler)))
-	mux.HandleFunc("GET /admin/users", requireAdmin(usersListHandler))
+	mux.HandleFunc("GET /{$}", requireAuth(requireSignature(indexHandler)))
+	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
+	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
+	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))
+	mux.HandleFunc("GET /clients/{id}", requireAuth(requireSignature(clientDetailHandler)))
+	mux.HandleFunc("GET /invoices/{id}/view", requireAuth(requireSignature(invoiceViewHandler)))
+	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(requireSignature(invoiceDownloadHandler)))
+	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(requireSignature(invoiceEmailHandler)))
+	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(requireSignature(invoiceEditHandler)))
+	mux.HandleFunc("POST /invoices/{id}/delete", requireAdmin(requireCSRF(invoiceDeleteHandler)))
+	mux.HandleFunc("GET /account/signature", requireAuth(accountSignatureHandler))
+	mux.HandleFunc("POST /account/signature", requireCSRF(accountSignatureSaveHandler))
+	mux.HandleFunc("POST /account", requireAuth(requireCSRF(accountPasswordHandler)))
+	mux.HandleFunc("GET /admin/users", requireAuth(usersListHandler))
 	mux.HandleFunc("POST /admin/users", requireAdmin(requireCSRF(usersCreateHandler)))
 	mux.HandleFunc("POST /admin/users/{id}/delete", requireAdmin(requireCSRF(usersDeleteHandler)))
+	mux.HandleFunc("POST /admin/users/{id}/role", requireAdmin(requireCSRF(usersRoleHandler)))
+	mux.HandleFunc("POST /admin/users/{id}/name", requireAdmin(requireCSRF(usersNameHandler)))
 
 	addr := ":8080"
 	log.Printf("Invoice app running at http://localhost%s", addr)

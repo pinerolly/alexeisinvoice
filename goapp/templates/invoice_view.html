@@ -26,6 +26,7 @@
         max-width: 850px;
         margin: 0 auto 16px auto;
         display: flex;
+        flex-wrap: wrap;
         gap: 10px;
         justify-content: flex-end;
       }
@@ -42,10 +43,58 @@
         font-weight: 600;
         cursor: pointer;
       }
-      .toolbar a.secondary {
+      .toolbar a.secondary,
+      .toolbar button.secondary {
         background: var(--light-bg);
         color: var(--primary);
         border: 1px solid var(--border);
+      }
+      .toolbar button.danger {
+        background: #b3261e;
+      }
+      .toolbar form {
+        display: contents;
+      }
+      .toolbar .email-form {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .toolbar .email-form input[type="email"] {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        width: 200px;
+      }
+      .email-row {
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .email-form {
+        display: inline-flex;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      .email-form input[type="email"] {
+        border: none;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        width: 240px;
+      }
+      .email-form button {
+        border: none;
+        background: var(--primary);
+        color: #fff;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
       }
       .invoice {
         max-width: 850px;
@@ -174,6 +223,13 @@
         height: 40px;
         margin-bottom: 6px;
       }
+      .sig-block img.sig-preview {
+        display: block;
+        max-height: 70px;
+        max-width: 100%;
+        border-bottom: 1px solid #999;
+        margin-bottom: 6px;
+      }
       .sig-label {
         font-size: 12px;
         color: #666;
@@ -237,29 +293,16 @@
           display: block;
           overflow-x: auto;
         }
-        .email-panel {
-          flex-direction: column;
-          align-items: stretch !important;
+        .email-row {
+          justify-content: stretch;
         }
-      }
-      .email-panel {
-        max-width: 850px;
-        margin: 0 auto 16px auto;
-        background: #fff;
-        border-radius: 6px;
-        padding: 14px 18px;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.06);
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-      .email-panel input[type="email"] {
-        flex: 1;
-        padding: 8px 10px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-size: 14px;
-        font-family: inherit;
+        .email-form {
+          width: 100%;
+        }
+        .email-form input[type="email"] {
+          width: auto;
+          flex: 1;
+        }
       }
       .banner {
         max-width: 850px;
@@ -288,25 +331,33 @@
     {{end}}
 
     <div class="toolbar">
-      <a class="secondary" href="/clients/{{.ClientID}}"
-        >&larr; Back to Client History</a
-      >
-      <a class="secondary" href="/invoices/{{.InvoiceID}}/edit"
-        >Edit this Invoice</a
-      >
+      <a class="secondary" href="/clients/{{.ClientID}}">Invoice History</a>
+      <a class="secondary" href="/invoices/{{.InvoiceID}}/edit">Edit Invoice</a>
       <a class="secondary" href="/invoices/{{.InvoiceID}}/download"
         >Download PDF</a
       >
-      <button type="button" onclick="window.print()">
-        Print / Save as PDF
-      </button>
+      <button type="button" onclick="window.print()">Print PDF</button>
+      {{if .IsAdmin}}
+      <form
+        method="POST"
+        action="/invoices/{{.InvoiceID}}/delete"
+        onsubmit="
+          return confirm(
+            'Delete this invoice permanently? This cannot be undone.',
+          );
+        "
+      >
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+        <button type="submit" class="danger">Delete Invoice</button>
+      </form>
+      {{end}}
     </div>
 
-    <div class="email-panel">
+    <div class="email-row">
       <form
         method="POST"
         action="/invoices/{{.InvoiceID}}/email"
-        style="display: flex; gap: 10px; align-items: center; flex: 1"
+        class="email-form"
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
         <input
@@ -316,7 +367,7 @@
           placeholder="client@example.com"
           required
         />
-        <button type="submit">Email PDF to Client</button>
+        <button type="submit">Email PDF</button>
       </form>
     </div>
 
@@ -332,6 +383,7 @@
         </div>
         <div class="invoice-title">
           <h1>INVOICE</h1>
+          <div class="invoice-no">Invoice #{{.InvoiceID}}</div>
           <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
         </div>
       </div>
@@ -382,12 +434,33 @@
 
       <div class="signatures">
         <div class="sig-block">
+          {{if .TechnicianSignature}}
+          <img
+            class="sig-preview"
+            src="{{signatureURL .TechnicianSignature}}"
+            alt="Technician signature"
+          />
+          {{else}}
           <div class="sig-line"></div>
-          <div class="sig-label">Technician Signature</div>
+          {{end}}
+          <div class="sig-label">
+            Technician Signature{{if .TechnicianUsername}}
+            ({{.TechnicianUsername}}){{end}}
+          </div>
         </div>
         <div class="sig-block">
+          {{if .CustomerSignature}}
+          <img
+            class="sig-preview"
+            src="{{signatureURL .CustomerSignature}}"
+            alt="Customer signature"
+          />
+          {{else}}
           <div class="sig-line"></div>
-          <div class="sig-label">Customer Signature</div>
+          {{end}}
+          <div class="sig-label">
+            Customer Signature{{if .ClientName}} ({{.ClientName}}){{end}}
+          </div>
         </div>
       </div>
 
