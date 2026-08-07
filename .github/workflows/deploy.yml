@@ -22,5 +22,7 @@ jobs:
           script: |
             cd   /home/ubuntu/docker/alexeisinvoice      #/path/to/your/project
             git pull origin main
-            # Add build/restart commands below (e.g., docker compose up -d --build)
-            sudo docker compose up -d --build
+            # Rebuild and force restart the container if it's already running 
+            sudo docker compose up -d --build --force-recreate 
+            # Optional: Remove unused old images to keep your server clean 
+            sudo docker image prune -f
