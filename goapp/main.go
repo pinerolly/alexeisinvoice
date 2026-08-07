@@ -193,11 +193,12 @@ func currentCSRFToken(r *http.Request) string {
 type EditPageView struct {
 	InvoiceData
 	CSRFToken string
+	IsAdmin   bool
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
-	view := EditPageView{InvoiceData: data, CSRFToken: currentCSRFToken(r)}
+	view := EditPageView{InvoiceData: data, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
 	mu.Unlock()
 	if err := mustTemplate("edit.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -297,6 +298,7 @@ type ClientsListView struct {
 	Clients   []ClientSummary
 	Search    string
 	CSRFToken string
+	IsAdmin   bool
 }
 
 func clientsListHandler(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +308,7 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r)}
+	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
 	if err := mustTemplate("clients_list.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -317,6 +319,7 @@ type ClientDetailView struct {
 	Client    Client
 	Invoices  []InvoiceSummary
 	CSRFToken string
+	IsAdmin   bool
 }
 
 func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
@@ -335,7 +338,7 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r)}
+	view := ClientDetailView{Client: client, Invoices: invoices, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r)}
 	if err := mustTemplate("client_detail.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -350,6 +353,7 @@ type InvoiceViewPage struct {
 	CSRFToken  string
 	EmailSent  bool
 	EmailError string
+	IsAdmin    bool
 }
 
 func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
@@ -371,6 +375,7 @@ func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:   currentCSRFToken(r),
 		EmailSent:   r.URL.Query().Get("emailed") == "1",
 		EmailError:  r.URL.Query().Get("emailerror"),
+		IsAdmin:     isAdmin(r),
 	}
 	if err := mustTemplate("invoice_view.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -484,14 +489,14 @@ func main() {
 	}
 
 	loadDotEnv(".env")
-	if err := loadAuthConfig(); err != nil {
-		log.Fatal(err)
-	}
 	loadData()
 	if err := initDB(); err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	if err := seedDefaultAdmin(); err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /login", loginHandler)
@@ -507,6 +512,11 @@ func main() {
 	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(invoiceDownloadHandler))
 	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(invoiceEmailHandler))
 	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(invoiceEditHandler))
+	mux.HandleFunc("GET /account", requireAuth(accountHandler))
+	mux.HandleFunc("POST /account", requireCSRF(accountHandler))
+	mux.HandleFunc("GET /admin/users", requireAdmin(usersListHandler))
+	mux.HandleFunc("POST /admin/users", requireAdmin(requireCSRF(usersCreateHandler)))
+	mux.HandleFunc("POST /admin/users/{id}/delete", requireAdmin(requireCSRF(usersDeleteHandler)))
 
 	addr := ":8080"
 	log.Printf("Invoice app running at http://localhost%s", addr)

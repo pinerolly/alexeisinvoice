@@ -1,15 +1,17 @@
-// Authentication: single hardcoded username with a bcrypt-hashed password
-// read from the environment, server-side sessions, CSRF protection, and a
-// simple brute-force lockout for the login endpoint.
+// Authentication: DB-backed user accounts (admin/user roles) with
+// bcrypt-hashed passwords, server-side sessions, CSRF protection, and a
+// simple brute-force lockout for the login endpoint. A default admin/admin
+// account is seeded on first run (see seedDefaultAdmin in db.go); the admin
+// should change that password immediately via the account page.
 package main
 
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"net"
 	"net/http"
-	"os"
+	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ const (
 
 type session struct {
 	username  string
+	role      string
 	csrfToken string
 	expiresAt time.Time
 }
@@ -42,33 +45,12 @@ type loginAttemptInfo struct {
 	lockedUntil time.Time
 }
 
-var (
-	authUsername     string
-	authPasswordHash []byte
-)
-
-// loadAuthConfig reads AUTH_USERNAME (default "alexies") and the required
-// AUTH_PASSWORD_HASH (a bcrypt hash) from the environment. It fails fast if
-// the hash is missing or invalid so the app never starts without auth.
-func loadAuthConfig() error {
-	authUsername = os.Getenv("AUTH_USERNAME")
-	if authUsername == "" {
-		authUsername = "alexies"
+func bcryptHash(plain string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
 	}
-
-	hash := os.Getenv("AUTH_PASSWORD_HASH")
-	if hash == "" {
-		return errors.New(
-			"AUTH_PASSWORD_HASH environment variable is not set.\n" +
-				"Generate one with:  invoiceapp.exe -hashpassword\n" +
-				"then set AUTH_PASSWORD_HASH to the printed value before starting the server.",
-		)
-	}
-	if _, err := bcrypt.Cost([]byte(hash)); err != nil {
-		return errors.New("AUTH_PASSWORD_HASH is not a valid bcrypt hash: " + err.Error())
-	}
-	authPasswordHash = []byte(hash)
-	return nil
+	return string(hash), nil
 }
 
 func generateToken() (string, error) {
@@ -118,7 +100,7 @@ func clearLoginFailures(ip string) {
 	delete(loginAttempts, ip)
 }
 
-func createSession(username string) (token string, s *session, err error) {
+func createSession(username, role string) (token string, s *session, err error) {
 	token, err = generateToken()
 	if err != nil {
 		return "", nil, err
@@ -129,6 +111,7 @@ func createSession(username string) (token string, s *session, err error) {
 	}
 	s = &session{
 		username:  username,
+		role:      role,
 		csrfToken: csrfToken,
 		expiresAt: time.Now().Add(sessionAbsoluteTTL),
 	}
@@ -195,6 +178,19 @@ func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireAdmin protects a handler behind a valid session with the "admin"
+// role, returning 403 for logged-in non-admins.
+func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		_, s := getSession(r)
+		if s.role != "admin" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	})
+}
+
 // requireCSRF validates the csrf_token form field on state-changing POST
 // requests against the current session's token.
 func requireCSRF(next http.HandlerFunc) http.HandlerFunc {
@@ -253,7 +249,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	valid := username == authUsername && bcrypt.CompareHashAndPassword(authPasswordHash, []byte(password)) == nil
+	user, err := getUserByUsername(username)
+	valid := err == nil && bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) == nil
 	if !valid {
 		recordLoginFailure(ip)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -265,7 +262,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clearLoginFailures(ip)
-	token, _, err := createSession(username)
+	token, _, err := createSession(user.Username, user.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -289,4 +286,133 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	clearSessionCookie(w)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// isAdmin reports whether the current request's session belongs to an admin.
+func isAdmin(r *http.Request) bool {
+	_, s := getSession(r)
+	return s != nil && s.role == "admin"
+}
+
+// currentUsername returns the logged-in user's username, or "" if none.
+func currentUsername(r *http.Request) string {
+	_, s := getSession(r)
+	if s == nil {
+		return ""
+	}
+	return s.username
+}
+
+// AccountPageView is the template data for the change-password page.
+type AccountPageView struct {
+	Username  string
+	CSRFToken string
+	Error     string
+	Success   string
+	IsAdmin   bool
+}
+
+func accountHandler(w http.ResponseWriter, r *http.Request) {
+	_, s := getSession(r)
+	view := AccountPageView{Username: s.username, CSRFToken: s.csrfToken, IsAdmin: s.role == "admin"}
+
+	if r.Method == http.MethodPost {
+		currentPassword := r.FormValue("current_password")
+		newPassword := r.FormValue("new_password")
+		confirmPassword := r.FormValue("confirm_password")
+
+		user, err := getUserByUsername(s.username)
+		switch {
+		case err != nil:
+			view.Error = "Account not found."
+		case bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)) != nil:
+			view.Error = "Current password is incorrect."
+		case len(newPassword) < 4:
+			view.Error = "New password must be at least 4 characters."
+		case newPassword != confirmPassword:
+			view.Error = "New password and confirmation do not match."
+		default:
+			if err := updateUserPassword(user.ID, newPassword); err != nil {
+				view.Error = err.Error()
+			} else {
+				view.Success = "Password updated successfully."
+			}
+		}
+	}
+
+	if err := mustTemplate("account.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// UsersPageView is the template data for the admin user-management page.
+type UsersPageView struct {
+	Users     []User
+	CSRFToken string
+	Error     string
+	IsAdmin   bool
+}
+
+func usersListHandler(w http.ResponseWriter, r *http.Request) {
+	users, err := listUsers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := UsersPageView{Users: users, CSRFToken: currentCSRFToken(r), Error: r.URL.Query().Get("error"), IsAdmin: true}
+	if err := mustTemplate("users.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func usersCreateHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	role := r.FormValue("role")
+	if role != "admin" {
+		role = "user"
+	}
+
+	if username == "" || len(password) < 4 {
+		http.Redirect(w, r, "/admin/users?error=Username+required+and+password+must+be+at+least+4+characters.", http.StatusSeeOther)
+		return
+	}
+	if err := createUser(username, password, role); err != nil {
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Could not create user: "+err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+func usersDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	user, err := getUserByID(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if user.Username == currentUsername(r) {
+		http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("You cannot delete your own account."), http.StatusSeeOther)
+		return
+	}
+	if user.Role == "admin" {
+		adminCount, err := countAdmins()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if adminCount <= 1 {
+			http.Redirect(w, r, "/admin/users?error="+url.QueryEscape("Cannot delete the last remaining admin."), http.StatusSeeOther)
+			return
+		}
+	}
+	if err := deleteUser(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }

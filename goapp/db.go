@@ -44,6 +44,14 @@ CREATE TABLE IF NOT EXISTS invoice_jobs (
 	price REAL NOT NULL DEFAULT 0,
 	sort_order INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS users (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	role TEXT NOT NULL DEFAULT 'user',
+	created_at TEXT NOT NULL
+);
 `
 
 func initDB() error {
@@ -336,4 +344,91 @@ func invoiceExists(id int64) (bool, error) {
 
 func clientTitle(name, invoiceDate string) string {
 	return fmt.Sprintf("%s_%s", slugify(name), invoiceDate)
+}
+
+// User is a login account. Role is either "admin" or "user".
+type User struct {
+	ID           int64
+	Username     string
+	PasswordHash string
+	Role         string
+}
+
+// seedDefaultAdmin creates the built-in admin/admin account the first time
+// the app runs, so there's always a way to log in without any manual setup.
+// It's a no-op once at least one user exists.
+func seedDefaultAdmin() error {
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	return createUser("admin", "admin", "admin")
+}
+
+func createUser(username, plainPassword, role string) error {
+	hash, err := bcryptHash(plainPassword)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(
+		`INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)`,
+		strings.TrimSpace(username), hash, role, time.Now().Format(time.RFC3339),
+	)
+	return err
+}
+
+func getUserByUsername(username string) (User, error) {
+	var u User
+	err := db.QueryRow(
+		`SELECT id, username, password_hash, role FROM users WHERE username = ?`, username,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role)
+	return u, err
+}
+
+func getUserByID(id int64) (User, error) {
+	var u User
+	err := db.QueryRow(
+		`SELECT id, username, password_hash, role FROM users WHERE id = ?`, id,
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role)
+	return u, err
+}
+
+func listUsers() ([]User, error) {
+	rows, err := db.Query(`SELECT id, username, password_hash, role FROM users ORDER BY username`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func countAdmins() (int, error) {
+	var count int
+	err := db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&count)
+	return count, err
+}
+
+func updateUserPassword(id int64, plainPassword string) error {
+	hash, err := bcryptHash(plainPassword)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, id)
+	return err
+}
+
+func deleteUser(id int64) error {
+	_, err := db.Exec(`DELETE FROM users WHERE id = ?`, id)
+	return err
 }

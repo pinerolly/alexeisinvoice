@@ -398,35 +398,57 @@
           <input type="time" id="timeOut" name="timeOut" value="{{.TimeOut}}" />
 
           <label>Jobs / Line Items</label>
-          {{range .Jobs}}
-          <div class="job-item">
-            <input type="hidden" name="jobId" value="{{.ID}}" />
-            <button
-              type="submit"
-              name="action"
-              value="remove:{{.ID}}"
-              class="remove-job"
-              title="Remove this job"
-            >
-              &#215;
-            </button>
-            <label>Description</label>
-            <textarea
-              name="description"
-              placeholder="Describe the work performed..."
-            >{{.Description}}</textarea>
-            <label>Price ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              name="price"
-              value="{{priceInput .Price}}"
-            />
+          <div id="jobsList">
+            {{range .Jobs}}
+            <div class="job-item">
+              <input type="hidden" name="jobId" value="{{.ID}}" />
+              <button
+                type="button"
+                class="remove-job"
+                title="Remove this job"
+                onclick="removeJob(this)"
+              >
+                &#215;
+              </button>
+              <label>Description</label>
+              <textarea
+                name="description"
+                placeholder="Describe the work performed..."
+              >{{.Description}}</textarea>
+              <label>Price ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                name="price"
+                value="{{priceInput .Price}}"
+              />
+            </div>
+            {{end}}
           </div>
-          {{end}}
 
-          <button type="submit" name="action" value="add" class="add-job-btn">
+          <template id="jobTemplate">
+            <div class="job-item">
+              <input type="hidden" name="jobId" value="0" />
+              <button
+                type="button"
+                class="remove-job"
+                title="Remove this job"
+                onclick="removeJob(this)"
+              >
+                &#215;
+              </button>
+              <label>Description</label>
+              <textarea
+                name="description"
+                placeholder="Describe the work performed..."
+              ></textarea>
+              <label>Price ($)</label>
+              <input type="number" step="0.01" min="0" name="price" value="" />
+            </div>
+          </template>
+
+          <button type="button" class="add-job-btn" onclick="addJob()">
             + Add Job
           </button>
 
@@ -540,5 +562,28 @@
         </div>
       </div>
     </div>
+
+    <script>
+      function addJob() {
+        const list = document.getElementById("jobsList");
+        const tpl = document.getElementById("jobTemplate");
+        const node = tpl.content.cloneNode(true);
+        list.appendChild(node);
+        const items = list.querySelectorAll(".job-item");
+        items[items.length - 1].querySelector("textarea").focus();
+      }
+
+      function removeJob(btn) {
+        const list = document.getElementById("jobsList");
+        const item = btn.closest(".job-item");
+        if (list.querySelectorAll(".job-item").length <= 1) {
+          // Always keep at least one row; clear it instead of removing.
+          item.querySelector("textarea").value = "";
+          item.querySelector('input[name="price"]').value = "";
+          return;
+        }
+        item.remove();
+      }
+    </script>
   </body>
 </html>
