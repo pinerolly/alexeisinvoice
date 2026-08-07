@@ -18,8 +18,20 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           mkdir -p "${RUNNER_TEMP}/deploy-ssh"
-          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "${RUNNER_TEMP}/deploy-ssh/id_rsa"
-          chmod 600 "${RUNNER_TEMP}/deploy-ssh/id_rsa"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          key = os.environ["VPS_SSH_KEY"]
+          for source, target in (("\\r\\n", "\n"), ("\r\n", "\n"), ("\\n", "\n"), ("\\r", "\n"), ("\r", "\n")):
+              key = key.replace(source, target)
+          if not key.endswith("\n"):
+              key += "\n"
+          path = Path(os.environ["RUNNER_TEMP"], "deploy-ssh", "id_rsa")
+          fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+          with os.fdopen(fd, "w", encoding="utf-8") as handle:
+              handle.write(key)
+          PY
 
       - name: SSH and Deploy
         uses: appleboy/ssh-action@v1.2.0
