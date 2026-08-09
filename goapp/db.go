@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 	technician_signature TEXT NOT NULL DEFAULT '',
 	customer_signature TEXT NOT NULL DEFAULT '',
 	payment_status TEXT NOT NULL DEFAULT 'unpaid',
+	amount_paid REAL NOT NULL DEFAULT 0,
 	created_at TEXT NOT NULL,
 	updated_at TEXT NOT NULL
 );
@@ -57,6 +58,14 @@ CREATE TABLE IF NOT EXISTS users (
 	signature TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS plaid_items (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	item_id TEXT NOT NULL UNIQUE,
+	access_token TEXT NOT NULL,
+	institution_name TEXT NOT NULL DEFAULT '',
+	created_at TEXT NOT NULL
+);
 `
 
 func initDB() error {
@@ -65,7 +74,16 @@ func initDB() error {
 	if err != nil {
 		return err
 	}
+	// SQLite works best with a single writer connection in this app.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	if err := db.Ping(); err != nil {
+		return err
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout = 10000;"); err != nil {
+		return err
+	}
+	if _, err := db.Exec("PRAGMA journal_mode = WAL;"); err != nil {
 		return err
 	}
 	// Enforce ON DELETE CASCADE behavior.
@@ -121,6 +139,15 @@ func migrateSchema() error {
 			if _, err := db.Exec(`UPDATE invoices SET payment_status = 'paid' WHERE paid = 1`); err != nil {
 				return err
 			}
+		}
+	}
+	if !existing["amount_paid"] {
+		if _, err := db.Exec(`ALTER TABLE invoices ADD COLUMN amount_paid REAL NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+		// Invoices already marked paid before this column existed: assume paid in full.
+		if _, err := db.Exec(`UPDATE invoices SET amount_paid = total WHERE payment_status = 'paid'`); err != nil {
+			return err
 		}
 	}
 
@@ -300,13 +327,17 @@ type ClientSummary struct {
 	Email         string
 	InvoiceCount  int
 	LifetimeTotal float64
+	UnpaidCount   int
+	OwedTotal     float64
 }
 
 func listClients(search string) ([]ClientSummary, error) {
 	query := `
 		SELECT c.id, c.name, c.phone, c.email,
 		       COUNT(i.id) AS invoice_count,
-		       COALESCE(SUM(i.total), 0) AS lifetime_total
+		       COALESCE(SUM(i.total), 0) AS lifetime_total,
+		       SUM(CASE WHEN i.payment_status IN ('unpaid', 'partial') THEN 1 ELSE 0 END) AS unpaid_count,
+		       COALESCE(SUM(i.total - i.amount_paid), 0) AS owed_total
 		FROM clients c
 		LEFT JOIN invoices i ON i.client_id = c.id
 	`
@@ -327,12 +358,18 @@ func listClients(search string) ([]ClientSummary, error) {
 	var out []ClientSummary
 	for rows.Next() {
 		var c ClientSummary
-		if err := rows.Scan(&c.ID, &c.Name, &c.Phone, &c.Email, &c.InvoiceCount, &c.LifetimeTotal); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Phone, &c.Email, &c.InvoiceCount, &c.LifetimeTotal, &c.UnpaidCount, &c.OwedTotal); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+func getClientTotalDebt(id int64) (float64, error) {
+	var debt float64
+	err := db.QueryRow(`SELECT COALESCE(SUM(total - amount_paid), 0) FROM invoices WHERE client_id = ?`, id).Scan(&debt)
+	return debt, err
 }
 
 func getClient(id int64) (Client, error) {
@@ -342,6 +379,12 @@ func getClient(id int64) (Client, error) {
 	return c, err
 }
 
+func getClientLifetimeTotal(id int64) (float64, error) {
+	var total float64
+	err := db.QueryRow(`SELECT COALESCE(SUM(total), 0) FROM invoices WHERE client_id = ?`, id).Scan(&total)
+	return total, err
+}
+
 // InvoiceSummary is a row in a client's invoice history table.
 type InvoiceSummary struct {
 	ID            int64
@@ -349,11 +392,13 @@ type InvoiceSummary struct {
 	Total         float64
 	JobCount      int
 	PaymentStatus string
+	AmountPaid    float64
+	Debt          float64
 }
 
 func getClientInvoices(clientID int64, statusFilter string) ([]InvoiceSummary, error) {
 	query := `
-		SELECT i.id, i.invoice_date, i.total, i.payment_status, COUNT(j.id) AS job_count
+		SELECT i.id, i.invoice_date, i.total, i.payment_status, i.amount_paid, COUNT(j.id) AS job_count
 		FROM invoices i
 		LEFT JOIN invoice_jobs j ON j.invoice_id = i.id
 		WHERE i.client_id = ?
@@ -374,17 +419,61 @@ func getClientInvoices(clientID int64, statusFilter string) ([]InvoiceSummary, e
 	var out []InvoiceSummary
 	for rows.Next() {
 		var s InvoiceSummary
-		if err := rows.Scan(&s.ID, &s.InvoiceDate, &s.Total, &s.PaymentStatus, &s.JobCount); err != nil {
+		if err := rows.Scan(&s.ID, &s.InvoiceDate, &s.Total, &s.PaymentStatus, &s.AmountPaid, &s.JobCount); err != nil {
 			return nil, err
 		}
+		s.Debt = s.Total - s.AmountPaid
 		out = append(out, s)
 	}
 	return out, rows.Err()
 }
 
-// setInvoicePaymentStatus updates an invoice's payment status ("unpaid", "partial", or "paid").
-func setInvoicePaymentStatus(id int64, status string) error {
-	_, err := db.Exec(`UPDATE invoices SET payment_status = ? WHERE id = ?`, status, id)
+// setInvoicePaymentStatus updates an invoice's payment status ("unpaid", "partial", or "paid")
+// along with the amount paid so far (ignored/clamped for "unpaid"/"paid").
+func setInvoicePaymentStatus(id int64, status string, amountPaid float64) error {
+	var total float64
+	if err := db.QueryRow(`SELECT total FROM invoices WHERE id = ?`, id).Scan(&total); err != nil {
+		return err
+	}
+	switch status {
+	case "paid":
+		amountPaid = total
+	case "unpaid":
+		amountPaid = 0
+	default: // partial
+		if amountPaid < 0 {
+			amountPaid = 0
+		}
+		if amountPaid > total {
+			amountPaid = total
+		}
+	}
+	_, err := db.Exec(`UPDATE invoices SET payment_status = ?, amount_paid = ? WHERE id = ?`, status, amountPaid, id)
+	return err
+}
+
+// addInvoicePayment records an additional installment payment on top of what
+// was already paid, clamping to the invoice total, and recalculates the
+// payment status ("paid" once fully covered, otherwise "partial"/"unpaid").
+func addInvoicePayment(id int64, amount float64) error {
+	var total, amountPaid float64
+	if err := db.QueryRow(`SELECT total, amount_paid FROM invoices WHERE id = ?`, id).Scan(&total, &amountPaid); err != nil {
+		return err
+	}
+	amountPaid += amount
+	if amountPaid < 0 {
+		amountPaid = 0
+	}
+	if amountPaid > total {
+		amountPaid = total
+	}
+	status := "partial"
+	if amountPaid <= 0 {
+		status = "unpaid"
+	} else if amountPaid >= total {
+		status = "paid"
+	}
+	_, err := db.Exec(`UPDATE invoices SET payment_status = ?, amount_paid = ? WHERE id = ?`, status, amountPaid, id)
 	return err
 }
 
@@ -394,13 +483,13 @@ func getInvoiceWithJobs(id int64) (InvoiceData, Client, error) {
 	var client Client
 	err := db.QueryRow(`
 		SELECT i.client_id, i.invoice_date, i.location, i.time_in, i.time_out,
-		       i.technician_username, i.technician_signature, i.customer_signature, i.payment_status,
+		       i.technician_username, i.technician_signature, i.customer_signature, i.payment_status, i.amount_paid,
 		       c.name, c.phone, c.email
 		FROM invoices i
 		JOIN clients c ON c.id = i.client_id
 		WHERE i.id = ?
 	`, id).Scan(&client.ID, &inv.InvoiceDate, &inv.Location, &inv.TimeIn, &inv.TimeOut,
-		&inv.TechnicianUsername, &inv.TechnicianSignature, &inv.CustomerSignature, &inv.PaymentStatus,
+		&inv.TechnicianUsername, &inv.TechnicianSignature, &inv.CustomerSignature, &inv.PaymentStatus, &inv.AmountPaid,
 		&client.Name, &client.Phone, &client.Email)
 	if err != nil {
 		return inv, client, err
@@ -582,3 +671,47 @@ func deleteUser(id int64) error {
 	_, err := db.Exec(`DELETE FROM users WHERE id = ?`, id)
 	return err
 }
+
+// PlaidItem is a bank connection (Plaid "Item") created via Plaid Link.
+type PlaidItem struct {
+	ID              int64
+	ItemID          string
+	AccessToken     string
+	InstitutionName string
+	CreatedAt       string
+}
+
+// savePlaidItem persists a newly-linked bank account's access token.
+func savePlaidItem(itemID, accessToken, institutionName string) error {
+	_, err := db.Exec(
+		`INSERT INTO plaid_items (item_id, access_token, institution_name, created_at) VALUES (?, ?, ?, ?)`,
+		itemID, accessToken, institutionName, time.Now().UTC().Format(time.RFC3339),
+	)
+	return err
+}
+
+// listPlaidItems returns all connected bank accounts, most recent first.
+func listPlaidItems() ([]PlaidItem, error) {
+	rows, err := db.Query(`SELECT id, item_id, access_token, institution_name, created_at FROM plaid_items ORDER BY id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []PlaidItem
+	for rows.Next() {
+		var p PlaidItem
+		if err := rows.Scan(&p.ID, &p.ItemID, &p.AccessToken, &p.InstitutionName, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// deletePlaidItem removes a stored bank connection.
+func deletePlaidItem(id int64) error {
+	_, err := db.Exec(`DELETE FROM plaid_items WHERE id = ?`, id)
+	return err
+}
+

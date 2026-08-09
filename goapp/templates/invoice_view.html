@@ -76,13 +76,16 @@
       }
       .email-form {
         display: inline-flex;
-        border-radius: 4px;
+        align-items: stretch;
+        border-radius: 6px;
         overflow: hidden;
         box-shadow: 0 0 0 1px var(--border);
       }
       .email-form input[type="email"] {
         border: none;
-        padding: 10px 12px;
+        padding: 0 12px;
+        height: 42px;
+        line-height: 42px;
         font-size: 14px;
         font-family: inherit;
         width: 240px;
@@ -91,10 +94,29 @@
         border: none;
         background: var(--primary);
         color: #fff;
-        padding: 10px 16px;
+        height: 42px;
+        padding: 0 16px;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
+      }
+      .email-form .cc-toggle {
+        width: 64px;
+        min-width: 64px;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        background: #fff;
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 600;
+        padding: 0;
+        text-align: center;
+      }
+      .email-form input[name="cc"] {
+        border-left: 1px solid var(--border);
+      }
+      .email-form input[name="cc"].hidden {
+        display: none;
       }
       .invoice {
         max-width: 850px;
@@ -392,12 +414,21 @@
         class="email-form"
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+        <input type="hidden" name="cc_open" value="{{if .ShowCC}}1{{else}}0{{end}}" />
         <input
           type="email"
           name="to"
-          value="{{.Email}}"
+          value="{{.EmailTo}}"
           placeholder="client@example.com"
           required
+        />
+        <button type="button" class="cc-toggle" onclick="toggleCcField(this)">Cc</button>
+        <input
+          type="email"
+          name="cc"
+          value="{{.DefaultCC}}"
+          placeholder="cc@example.com"
+          class="hidden"
         />
         <button type="submit">Email PDF</button>
       </form>
@@ -417,36 +448,6 @@
           <h1>INVOICE</h1>
           <div class="invoice-no">Invoice #{{.InvoiceID}}</div>
           <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
-          <div class="invoice-no">
-            <span class="status-badge status-{{.PaymentStatus}}"
-              >{{.PaymentStatus}}</span
-            >
-            {{if .IsAdmin}}
-            <form
-              class="status-toggle"
-              method="POST"
-              action="/invoices/{{.InvoiceID}}/paid"
-            >
-              <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-              <input
-                type="hidden"
-                name="redirect"
-                value="/invoices/{{.InvoiceID}}/view"
-              />
-              <select name="payment_status" onchange="this.form.submit()">
-                <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
-                  Unpaid
-                </option>
-                <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
-                  Partial
-                </option>
-                <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
-                  Paid
-                </option>
-              </select>
-            </form>
-            {{end}}
-          </div>
         </div>
       </div>
 
@@ -531,5 +532,47 @@
         LLC &nbsp;|&nbsp; 786 389 3330
       </div>
     </div>
+    <script>
+      function submitInstallmentPayment(form) {
+        var amount = prompt("Payment amount received:", "");
+        if (amount === null) return false;
+        var parsed = parseFloat(amount);
+        if (isNaN(parsed) || parsed <= 0) {
+          alert("Please enter a valid positive amount.");
+          return false;
+        }
+        form.querySelector('input[name="amount"]').value = parsed;
+        return true;
+      }
+      function toggleCcField(button) {
+        var cc = button.parentElement.querySelector('input[name="cc"]');
+        var ccOpen = button.parentElement.querySelector('input[name="cc_open"]');
+        var original = cc.dataset.originalValue || "";
+        if (cc.classList.contains("hidden")) {
+          cc.classList.remove("hidden");
+          ccOpen.value = "1";
+          button.textContent = "Undo";
+          cc.focus();
+          if (cc.value.trim() === "" && original !== "") {
+            cc.value = original;
+          }
+          return;
+        }
+        cc.value = original;
+        cc.classList.add("hidden");
+        ccOpen.value = "0";
+        button.textContent = "Cc";
+      }
+      document.querySelectorAll('.email-form input[name="cc"]').forEach(function (cc) {
+        cc.dataset.originalValue = cc.value;
+        var toggle = cc.parentElement.querySelector(".cc-toggle");
+        var ccOpen = cc.parentElement.querySelector('input[name="cc_open"]');
+        if (cc.value.trim() !== "") {
+          cc.classList.remove("hidden");
+          ccOpen.value = "1";
+          if (toggle) toggle.textContent = "Undo";
+        }
+      });
+    </script>
   </body>
 </html>

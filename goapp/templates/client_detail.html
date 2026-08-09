@@ -175,6 +175,8 @@
           {{end}} {{if .Client.Email}}
           <p>Email: {{.Client.Email}}</p>
           {{end}}
+          <p>Lifetime Total: {{money .LifetimeTotal}}</p>
+          <p>Total Debt: {{money .TotalDebt}}</p>
         </div>
       </div>
 
@@ -209,6 +211,7 @@
               <th>Date</th>
               <th style="text-align: center">Jobs</th>
               <th style="text-align: right">Total</th>
+              <th style="text-align: right">Debt</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -221,6 +224,7 @@
               <td>{{formatDate .InvoiceDate}}</td>
               <td class="center">{{.JobCount}}</td>
               <td class="num">{{money .Total}}</td>
+              <td class="num">{{money .Debt}}</td>
               <td onclick="event.stopPropagation()">
                 {{if $.IsAdmin}}
                 <form
@@ -238,6 +242,11 @@
                     name="redirect"
                     value="/clients/{{$.Client.ID}}"
                   />
+                  <input
+                    type="hidden"
+                    name="amount_paid"
+                    value="{{.AmountPaid}}"
+                  />
                   <select name="payment_status" onchange="this.form.submit()">
                     <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
                       Unpaid
@@ -249,6 +258,25 @@
                       Paid
                     </option>
                   </select>
+                </form>
+                <form
+                  class="status-toggle"
+                  method="POST"
+                  action="/invoices/{{.ID}}/add-payment"
+                  onsubmit="return submitInstallmentPayment(this)"
+                >
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{$.CSRFToken}}"
+                  />
+                  <input
+                    type="hidden"
+                    name="redirect"
+                    value="/clients/{{$.Client.ID}}"
+                  />
+                  <input type="hidden" name="amount" value="" />
+                  <button type="submit">+ Payment</button>
                 </form>
                 {{else}}
                 {{.PaymentStatus}}
@@ -263,5 +291,18 @@
         {{end}}
       </div>
     </div>
+    <script>
+      function submitInstallmentPayment(form) {
+        var amount = prompt("Payment amount received:", "");
+        if (amount === null) return false;
+        var parsed = parseFloat(amount);
+        if (isNaN(parsed) || parsed <= 0) {
+          alert("Please enter a valid positive amount.");
+          return false;
+        }
+        form.querySelector('input[name="amount"]').value = parsed;
+        return true;
+      }
+    </script>
   </body>
 </html>

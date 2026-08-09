@@ -24,7 +24,7 @@ func loadSMTPConfig() (smtpConfig, error) {
 		from:     os.Getenv("SMTP_FROM"),
 	}
 	if cfg.host == "" || cfg.port == "" || cfg.username == "" || cfg.password == "" {
-		return cfg, fmt.Errorf("email is not configured: set SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD in .env")
+		return cfg, fmt.Errorf("email is not configured: set SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD in runtime environment")
 	}
 	if cfg.from == "" {
 		cfg.from = cfg.username
@@ -32,9 +32,9 @@ func loadSMTPConfig() (smtpConfig, error) {
 	return cfg, nil
 }
 
-// sendInvoiceEmail emails the given PDF as an attachment to "to" using the
-// SMTP settings from the environment.
-func sendInvoiceEmail(to, subject, body string, pdfBytes []byte, filename string) error {
+// sendInvoiceEmail emails the given PDF as an attachment to "to" (optionally
+// CC'ing "cc") using the SMTP settings from the environment.
+func sendInvoiceEmail(to, cc, subject, body string, pdfBytes []byte, filename string) error {
 	cfg, err := loadSMTPConfig()
 	if err != nil {
 		return err
@@ -44,6 +44,9 @@ func sendInvoiceEmail(to, subject, body string, pdfBytes []byte, filename string
 	var msg bytes.Buffer
 	fmt.Fprintf(&msg, "From: Electroclima Pro Services <%s>\r\n", cfg.from)
 	fmt.Fprintf(&msg, "To: %s\r\n", to)
+	if cc != "" {
+		fmt.Fprintf(&msg, "Cc: %s\r\n", cc)
+	}
 	fmt.Fprintf(&msg, "Subject: %s\r\n", mime.QEncoding.Encode("UTF-8", subject))
 	fmt.Fprintf(&msg, "MIME-Version: 1.0\r\n")
 	fmt.Fprintf(&msg, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", boundary)
@@ -71,5 +74,8 @@ func sendInvoiceEmail(to, subject, body string, pdfBytes []byte, filename string
 	auth := smtp.PlainAuth("", cfg.username, cfg.password, cfg.host)
 	addr := cfg.host + ":" + cfg.port
 	toList := []string{strings.TrimSpace(to)}
+	if cc != "" {
+		toList = append(toList, strings.TrimSpace(cc))
+	}
 	return smtp.SendMail(addr, auth, cfg.from, toList, msg.Bytes())
 }

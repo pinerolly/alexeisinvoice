@@ -142,13 +142,19 @@ func deleteSession(token string) {
 	delete(sessions, token)
 }
 
-func setSessionCookie(w http.ResponseWriter, token string) {
+// isRequestSecure reports whether the client's connection is HTTPS, either
+// directly or via a reverse proxy (e.g. Caddy) that sets X-Forwarded-Proto.
+func isRequestSecure(r *http.Request) bool {
+	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+func setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   isRequestSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		// Persist across browser restarts up to the session's absolute TTL,
 		// so reopening the app goes straight to New Invoice instead of login.
@@ -156,13 +162,13 @@ func setSessionCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-func clearSessionCookie(w http.ResponseWriter) {
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   isRequestSecure(r),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
@@ -288,7 +294,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	setSessionCookie(w, token)
+	setSessionCookie(w, r, token)
 
 	next := r.FormValue("next")
 	if next == "" || next == "/login" {
@@ -305,7 +311,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	if token, s := getSession(r); s != nil {
 		deleteSession(token)
 	}
-	clearSessionCookie(w)
+	clearSessionCookie(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 

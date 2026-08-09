@@ -1,0 +1,9 @@
+{$SITE_HOST:electroclimapro.lostitos.us} {
+handle /tools/whoami* {
+reverse_proxy whoami:80
+}
+
+handle {
+reverse_proxy invoiceapp:8080
+}
+}

@@ -1,7 +1,11 @@
-# Replace example.com with your real domain. Caddy automatically obtains and
+# Staging/local mode: listen on plain HTTP to avoid ACME validation failures
+# when this host is behind another proxy or only resolves via local DNS.
+:80 {
+handle /tools/whoami* {
+reverse_proxy whoami:80
+}
 
-# renews a Let's Encrypt TLS certificate for it.
-
-electroclimapro.lostitos.us {
+handle {
 reverse_proxy invoiceapp:8080
+}
 }

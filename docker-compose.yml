@@ -1,17 +1,80 @@
 services:
+  infisical-secrets:
+    image: infisical/cli:latest
+    restart: unless-stopped
+    profiles: ["infisical"]
+    environment:
+      INFISICAL_API_URL: ${INFISICAL_API_URL:-https://app.infisical.com}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:-}
+      INFISICAL_ENV: ${INFISICAL_ENV:-prod}
+      INFISICAL_TOKEN: ${INFISICAL_TOKEN:-}
+    volumes:
+      - runtime_secrets:/run/secrets
+    command: |
+      sh -lc '
+        while true; do
+          infisical export \
+            --domain "$${INFISICAL_API_URL}" \
+            --projectId "$${INFISICAL_PROJECT_ID}" \
+            --env "$${INFISICAL_ENV}" \
+            --token "$${INFISICAL_TOKEN}" \
+            --format dotenv > /run/secrets/invoice.env.tmp
+          mv /run/secrets/invoice.env.tmp /run/secrets/invoice.env
+          chmod 600 /run/secrets/invoice.env
+          sleep 300
+        done
+      '
+
   invoiceapp:
     build: ./goapp
     restart: unless-stopped
+    env_file:
+      - ${APP_SECRETS_FILE:-./secrets/invoice.env}
     volumes:
-      - invoice_data:/data
-    environment:
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USERNAME: ${SMTP_USERNAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_FROM: ${SMTP_FROM}
+      - ${INVOICE_DATA_DIR:-./data/invoice}:/data
+      - runtime_secrets:/run/secrets:ro
     expose:
       - "8080"
+    networks:
+      - appmesh
+
+  whoami:
+    image: traefik/whoami:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - appmesh
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    env_file:
+      - ${APP_SECRETS_FILE:-./secrets/invoice.env}
+    volumes:
+      - ${MINIO_DATA_DIR:-minio_data}:/data
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    networks:
+      - appmesh
+
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    depends_on:
+      - minio
+    env_file:
+      - ${APP_SECRETS_FILE:-./secrets/invoice.env}
+    command:
+      - until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 2; done; mc mb --ignore-existing local/invoice-files; mc anonymous set none local/invoice-files
+    networks:
+      - appmesh
 
   caddy:
     image: caddy:2-alpine
@@ -20,13 +83,22 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - ${CADDYFILE_PATH:-./Caddyfile}:/etc/caddy/Caddyfile
+      - ${CADDY_DATA_DIR:-caddy_data}:/data
+      - ${CADDY_CONFIG_DIR:-caddy_config}:/config
     depends_on:
       - invoiceapp
+      - whoami
+      - minio
+    networks:
+      - appmesh
 
 volumes:
-  invoice_data:
+  runtime_secrets:
+  minio_data:
   caddy_data:
   caddy_config:
+
+networks:
+  appmesh:
+    driver: bridge

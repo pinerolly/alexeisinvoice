@@ -1,0 +1,6 @@
+services:
+  invoiceapp:
+    environment:
+      TEMPLATE_DIR: /templates
+    volumes:
+      - ./goapp/templates:/templates:ro

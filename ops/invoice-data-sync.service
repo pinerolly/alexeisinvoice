@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync invoice runtime data to Samba backup path
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SRC_DIR=/srv/invoice/data
+Environment=DST_DIR=/mnt/nas-projects/my-work/all-work/invoice/data/invoice
+ExecStart=/bin/bash /mnt/nas-projects/my-work/all-work/invoice/scripts/sync_invoice_data_to_samba.sh

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,6 +51,7 @@ type InvoiceData struct {
 	TechnicianSignature string `json:"technicianSignature"` // data:image/png;base64,... from the signature pad
 	CustomerSignature   string `json:"customerSignature"`   // data:image/png;base64,... from the signature pad
 	PaymentStatus       string `json:"paymentStatus"`       // "unpaid", "partial", or "paid"
+	AmountPaid          float64 `json:"amountPaid"`         // amount paid so far when PaymentStatus is "partial"
 }
 
 var (
@@ -189,6 +191,12 @@ func signatureURL(dataURL string) template.URL {
 }
 
 func mustTemplate(name string) *template.Template {
+	if dir := strings.TrimSpace(os.Getenv("TEMPLATE_DIR")); dir != "" {
+		return template.Must(template.New(name).Funcs(funcMap).ParseFiles(
+			filepath.Join(dir, name),
+			filepath.Join(dir, "partials.html"),
+		))
+	}
 	return template.Must(template.New(name).Funcs(funcMap).ParseFS(templateFS, "templates/"+name, "templates/partials.html"))
 }
 
@@ -394,13 +402,15 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 
 // ClientDetailView is the template data for a single client's history page.
 type ClientDetailView struct {
-	Client       Client
-	Invoices     []InvoiceSummary
-	StatusFilter string
-	CSRFToken    string
-	IsAdmin      bool
-	Username     string
-	DisplayName  string
+	Client        Client
+	Invoices      []InvoiceSummary
+	StatusFilter  string
+	LifetimeTotal float64
+	TotalDebt     float64
+	CSRFToken     string
+	IsAdmin       bool
+	Username      string
+	DisplayName   string
 }
 
 func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
@@ -423,7 +433,17 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientDetailView{Client: client, Invoices: invoices, StatusFilter: statusFilter, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
+	lifetimeTotal, err := getClientLifetimeTotal(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	totalDebt, err := getClientTotalDebt(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := ClientDetailView{Client: client, Invoices: invoices, StatusFilter: statusFilter, LifetimeTotal: lifetimeTotal, TotalDebt: totalDebt, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
 	if err := mustTemplate("client_detail.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -438,6 +458,9 @@ type InvoiceViewPage struct {
 	CSRFToken   string
 	EmailSent   bool
 	EmailError  string
+	EmailTo     string
+	DefaultCC   string
+	ShowCC      bool
 	IsAdmin     bool
 	Username    string
 	DisplayName string
@@ -462,9 +485,18 @@ func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:   currentCSRFToken(r),
 		EmailSent:   r.URL.Query().Get("emailed") == "1",
 		EmailError:  r.URL.Query().Get("emailerror"),
+		EmailTo:     r.URL.Query().Get("to"),
+		DefaultCC:   r.URL.Query().Get("cc"),
+		ShowCC:      r.URL.Query().Get("ccopen") == "1",
 		IsAdmin:     isAdmin(r),
 		Username:    currentUsername(r),
 		DisplayName: currentDisplayName(r),
+	}
+	if view.EmailTo == "" {
+		view.EmailTo = inv.Email
+	}
+	if view.DefaultCC != "" {
+		view.ShowCC = true
 	}
 	if err := mustTemplate("invoice_view.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -510,7 +542,37 @@ func invoicePaidHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid payment status", http.StatusBadRequest)
 		return
 	}
-	if err := setInvoicePaymentStatus(id, status); err != nil {
+	amountPaid, _ := strconv.ParseFloat(r.FormValue("amount_paid"), 64)
+	if err := setInvoicePaymentStatus(id, status, amountPaid); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	redirect := r.FormValue("redirect")
+	if redirect == "" {
+		redirect = fmt.Sprintf("/clients/%d", client.ID)
+	}
+	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+// invoiceAddPaymentHandler records an additional installment payment on an
+// invoice, adding to whatever has already been paid (admin only).
+func invoiceAddPaymentHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	_, client, err := getInvoiceWithJobs(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "invalid payment amount", http.StatusBadRequest)
+		return
+	}
+	if err := addInvoicePayment(id, amount); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -559,11 +621,24 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	to := strings.TrimSpace(r.FormValue("to"))
+	cc := strings.TrimSpace(r.FormValue("cc"))
+	ccOpen := r.FormValue("cc_open") == "1"
 	redirectWithError := func(msg string) {
-		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?emailerror=%s", id, url.QueryEscape(msg)), http.StatusSeeOther)
+		q := url.Values{}
+		q.Set("emailerror", msg)
+		q.Set("to", to)
+		q.Set("cc", cc)
+		if ccOpen || cc != "" {
+			q.Set("ccopen", "1")
+		}
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?%s", id, q.Encode()), http.StatusSeeOther)
 	}
 	if to == "" || !strings.Contains(to, "@") {
 		redirectWithError("Please enter a valid email address.")
+		return
+	}
+	if cc != "" && !strings.Contains(cc, "@") {
+		redirectWithError("Please enter a valid CC email address.")
 		return
 	}
 
@@ -576,12 +651,19 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 
 	subject := fmt.Sprintf("Invoice from Electroclima Pro Services - %s", formatDateDisplay(inv.InvoiceDate))
 	body := fmt.Sprintf("Hello %s,\n\nPlease find attached your invoice from Electroclima Pro Services, LLC.\n\nTotal Amount Due: %s\n\nThank you for your business!\n\nElectroclima Pro Services, LLC\n786 389 3330", inv.ClientName, money(totalOf(inv.Jobs)))
-	if err := sendInvoiceEmail(to, subject, body, pdfBytes, invoiceFilename(title)); err != nil {
+	if err := sendInvoiceEmail(to, cc, subject, body, pdfBytes, invoiceFilename(title)); err != nil {
 		redirectWithError("Could not send the email: " + err.Error())
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?emailed=1", id), http.StatusSeeOther)
+	q := url.Values{}
+	q.Set("emailed", "1")
+	q.Set("to", to)
+	q.Set("cc", cc)
+	if ccOpen || cc != "" {
+		q.Set("ccopen", "1")
+	}
+	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?%s", id, q.Encode()), http.StatusSeeOther)
 }
 
 func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
@@ -653,6 +735,7 @@ func main() {
 	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(requireSignature(invoiceEditHandler)))
 	mux.HandleFunc("POST /invoices/{id}/delete", requireAdmin(requireCSRF(invoiceDeleteHandler)))
 	mux.HandleFunc("POST /invoices/{id}/paid", requireAdmin(requireCSRF(invoicePaidHandler)))
+	mux.HandleFunc("POST /invoices/{id}/add-payment", requireAdmin(requireCSRF(invoiceAddPaymentHandler)))
 	mux.HandleFunc("GET /account/signature", requireAuth(accountSignatureHandler))
 	mux.HandleFunc("POST /account/signature", requireCSRF(accountSignatureSaveHandler))
 	mux.HandleFunc("POST /account", requireAuth(requireCSRF(accountPasswordHandler)))
@@ -661,6 +744,10 @@ func main() {
 	mux.HandleFunc("POST /admin/users/{id}/delete", requireAdmin(requireCSRF(usersDeleteHandler)))
 	mux.HandleFunc("POST /admin/users/{id}/role", requireAdmin(requireCSRF(usersRoleHandler)))
 	mux.HandleFunc("POST /admin/users/{id}/name", requireAdmin(requireCSRF(usersNameHandler)))
+	mux.HandleFunc("GET /admin/bank", requireAdmin(plaidBankPageHandler))
+	mux.HandleFunc("POST /admin/plaid/link-token", requireAdmin(requireCSRF(plaidLinkTokenHandler)))
+	mux.HandleFunc("POST /admin/plaid/exchange", requireAdmin(requireCSRF(plaidExchangeHandler)))
+	mux.HandleFunc("POST /admin/plaid/{id}/delete", requireAdmin(requireCSRF(plaidDeleteHandler)))
 
 	addr := ":8080"
 	log.Printf("Invoice app running at http://localhost%s", addr)

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run invoice data sync every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Persistent=true
+Unit=invoice-data-sync.service
+
+[Install]
+WantedBy=timers.target

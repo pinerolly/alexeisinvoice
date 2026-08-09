@@ -84,6 +84,16 @@
         text-align: right;
         font-weight: 600;
       }
+      tbody td.num-center {
+        text-align: center;
+        font-weight: 600;
+      }
+      .count-red {
+        color: #842029;
+      }
+      .count-green {
+        color: #0f5132;
+      }
       a.client-link {
         color: var(--primary);
         font-weight: 600;
@@ -137,10 +147,8 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th style="text-align: right">Invoices</th>
-              <th style="text-align: right">Lifetime Total</th>
+              <th style="text-align: center">Debt</th>
+              <th style="text-align: right">Total Debt</th>
             </tr>
           </thead>
           <tbody>
@@ -149,10 +157,8 @@
               <td>
                 <a class="client-link" href="/clients/{{.ID}}">{{.Name}}</a>
               </td>
-              <td>{{.Phone}}</td>
-              <td>{{.Email}}</td>
-              <td class="num">{{.InvoiceCount}}</td>
-              <td class="num">{{money .LifetimeTotal}}</td>
+              <td class="num-center {{if gt .UnpaidCount 0}}count-red{{else}}count-green{{end}}">{{.UnpaidCount}}</td>
+              <td class="num">{{money .OwedTotal}}</td>
             </tr>
             {{end}}
           </tbody>

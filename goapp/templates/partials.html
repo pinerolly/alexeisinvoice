@@ -77,6 +77,9 @@
     <a href="/">New Invoice</a>
     <a href="/clients">Invoices</a>
     <a href="/admin/users">Workers</a>
+    {{if .IsAdmin}}
+    <a href="/admin/bank">Bank</a>
+    {{end}}
     <form method="POST" action="/logout">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
       <button type="submit" class="logout-btn">Log out</button>
