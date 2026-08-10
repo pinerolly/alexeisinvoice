@@ -19,7 +19,7 @@ const (
 // generateInvoicePDF renders an invoice as a PDF document matching the
 // on-screen layout, returning the raw PDF bytes. invoiceID is the permanent,
 // never-reused invoice number (the DB row's autoincrement id).
-func generateInvoicePDF(inv InvoiceData, client Client, title string, invoiceID int64) ([]byte, error) {
+func generateInvoicePDF(inv InvoiceData, client Client, title string, _ int64) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetTitle(title, false)
 	pdf.SetMargins(18, 18, 18)

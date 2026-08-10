@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS invoice_jobs (
 	sort_order INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS invoice_photos (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+	object_key TEXT NOT NULL,
+	filename TEXT NOT NULL,
+	content_type TEXT NOT NULL,
+	size_bytes INTEGER NOT NULL DEFAULT 0,
+	uploader_username TEXT NOT NULL DEFAULT '',
+	created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS users (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	username TEXT NOT NULL UNIQUE,
@@ -177,6 +188,33 @@ func migrateSchema() error {
 			continue
 		}
 		if _, err := db.Exec(fmt.Sprintf(`ALTER TABLE users ADD COLUMN %s TEXT NOT NULL DEFAULT ''`, col)); err != nil {
+			return err
+		}
+	}
+
+	prows, err := db.Query(`PRAGMA table_info(invoice_photos)`)
+	if err != nil {
+		return err
+	}
+	photoCols := map[string]bool{}
+	for prows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := prows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			prows.Close()
+			return err
+		}
+		photoCols[name] = true
+	}
+	if err := prows.Err(); err != nil {
+		return err
+	}
+	prows.Close()
+	if !photoCols["uploader_username"] {
+		if _, err := db.Exec(`ALTER TABLE invoice_photos ADD COLUMN uploader_username TEXT NOT NULL DEFAULT ''`); err != nil {
 			return err
 		}
 	}
@@ -520,6 +558,66 @@ func getInvoiceWithJobs(id int64) (InvoiceData, Client, error) {
 	}
 	inv.NextJobID = nextID
 	return inv, client, nil
+}
+
+// InvoicePhoto stores metadata for evidence photos attached to an invoice.
+type InvoicePhoto struct {
+	ID          int64
+	InvoiceID   int64
+	ObjectKey   string
+	Filename    string
+	ContentType string
+	SizeBytes   int64
+	Uploader    string
+	CreatedAt   string
+}
+
+func createInvoicePhoto(invoiceID int64, objectKey, filename, contentType, uploader string, sizeBytes int64) (int64, error) {
+	res, err := db.Exec(
+		`INSERT INTO invoice_photos (invoice_id, object_key, filename, content_type, size_bytes, uploader_username, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		invoiceID, objectKey, filename, contentType, sizeBytes, uploader, time.Now().UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func listInvoicePhotos(invoiceID int64) ([]InvoicePhoto, error) {
+	rows, err := db.Query(
+		`SELECT id, invoice_id, object_key, filename, content_type, size_bytes, uploader_username, created_at
+		 FROM invoice_photos WHERE invoice_id = ? ORDER BY id DESC`,
+		invoiceID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var photos []InvoicePhoto
+	for rows.Next() {
+		var p InvoicePhoto
+		if err := rows.Scan(&p.ID, &p.InvoiceID, &p.ObjectKey, &p.Filename, &p.ContentType, &p.SizeBytes, &p.Uploader, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		photos = append(photos, p)
+	}
+	return photos, rows.Err()
+}
+
+func getInvoicePhoto(photoID int64) (InvoicePhoto, error) {
+	var p InvoicePhoto
+	err := db.QueryRow(
+		`SELECT id, invoice_id, object_key, filename, content_type, size_bytes, uploader_username, created_at
+		 FROM invoice_photos WHERE id = ?`,
+		photoID,
+	).Scan(&p.ID, &p.InvoiceID, &p.ObjectKey, &p.Filename, &p.ContentType, &p.SizeBytes, &p.Uploader, &p.CreatedAt)
+	return p, err
+}
+
+func deleteInvoicePhoto(photoID int64) error {
+	_, err := db.Exec(`DELETE FROM invoice_photos WHERE id = ?`, photoID)
+	return err
 }
 
 func invoiceExists(id int64) (bool, error) {

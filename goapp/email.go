@@ -15,6 +15,12 @@ type smtpConfig struct {
 	host, port, username, password, from string
 }
 
+type emailAttachment struct {
+	Filename    string
+	ContentType string
+	Data        []byte
+}
+
 func loadSMTPConfig() (smtpConfig, error) {
 	cfg := smtpConfig{
 		host:     os.Getenv("SMTP_HOST"),
@@ -35,6 +41,15 @@ func loadSMTPConfig() (smtpConfig, error) {
 // sendInvoiceEmail emails the given PDF as an attachment to "to" (optionally
 // CC'ing "cc") using the SMTP settings from the environment.
 func sendInvoiceEmail(to, cc, subject, body string, pdfBytes []byte, filename string) error {
+	attachments := []emailAttachment{{
+		Filename:    filename,
+		ContentType: "application/pdf",
+		Data:        pdfBytes,
+	}}
+	return sendInvoiceEmailWithAttachments(to, cc, subject, body, attachments)
+}
+
+func sendInvoiceEmailWithAttachments(to, cc, subject, body string, attachments []emailAttachment) error {
 	cfg, err := loadSMTPConfig()
 	if err != nil {
 		return err
@@ -56,18 +71,27 @@ func sendInvoiceEmail(to, cc, subject, body string, pdfBytes []byte, filename st
 	msg.WriteString(body)
 	msg.WriteString("\r\n\r\n")
 
-	fmt.Fprintf(&msg, "--%s\r\n", boundary)
-	fmt.Fprintf(&msg, "Content-Type: application/pdf\r\n")
-	fmt.Fprintf(&msg, "Content-Transfer-Encoding: base64\r\n")
-	fmt.Fprintf(&msg, "Content-Disposition: attachment; filename=%q\r\n\r\n", filename)
-	encoded := base64.StdEncoding.EncodeToString(pdfBytes)
-	for i := 0; i < len(encoded); i += 76 {
-		end := i + 76
-		if end > len(encoded) {
-			end = len(encoded)
+	for _, a := range attachments {
+		if len(a.Data) == 0 || strings.TrimSpace(a.Filename) == "" {
+			continue
 		}
-		msg.WriteString(encoded[i:end])
-		msg.WriteString("\r\n")
+		ctype := strings.TrimSpace(a.ContentType)
+		if ctype == "" {
+			ctype = "application/octet-stream"
+		}
+		fmt.Fprintf(&msg, "--%s\r\n", boundary)
+		fmt.Fprintf(&msg, "Content-Type: %s\r\n", ctype)
+		fmt.Fprintf(&msg, "Content-Transfer-Encoding: base64\r\n")
+		fmt.Fprintf(&msg, "Content-Disposition: attachment; filename=%q\r\n\r\n", a.Filename)
+		encoded := base64.StdEncoding.EncodeToString(a.Data)
+		for i := 0; i < len(encoded); i += 76 {
+			end := i + 76
+			if end > len(encoded) {
+				end = len(encoded)
+			}
+			msg.WriteString(encoded[i:end])
+			msg.WriteString("\r\n")
+		}
 	}
 	fmt.Fprintf(&msg, "--%s--\r\n", boundary)
 

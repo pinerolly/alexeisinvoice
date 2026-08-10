@@ -228,9 +228,17 @@ func requireCSRF(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodPost {
-			if err := r.ParseForm(); err != nil {
-				http.Error(w, "invalid form", http.StatusBadRequest)
-				return
+			contentType := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
+			if strings.HasPrefix(contentType, "multipart/form-data") {
+				if err := r.ParseMultipartForm(32 << 20); err != nil {
+					http.Error(w, "invalid form", http.StatusBadRequest)
+					return
+				}
+			} else {
+				if err := r.ParseForm(); err != nil {
+					http.Error(w, "invalid form", http.StatusBadRequest)
+					return
+				}
 			}
 			if r.FormValue("csrf_token") != s.csrfToken {
 				http.Error(w, "invalid or missing CSRF token", http.StatusForbidden)

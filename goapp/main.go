@@ -4,11 +4,14 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -22,6 +25,24 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 )
+
+const maxEvidencePhotoBytes = 10 << 20 // 10 MiB
+const defaultEvidenceZipEmailMaxBytes = 20 << 20
+
+func evidenceZipEmailMaxBytes() int {
+	raw := strings.TrimSpace(os.Getenv("EVIDENCE_ZIP_EMAIL_MAX_BYTES"))
+	if raw == "" {
+		return defaultEvidenceZipEmailMaxBytes
+	}
+	v, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || v <= 0 {
+		return defaultEvidenceZipEmailMaxBytes
+	}
+	if v > int64(^uint(0)>>1) {
+		return defaultEvidenceZipEmailMaxBytes
+	}
+	return int(v)
+}
 
 //go:embed templates/*.html
 var templateFS embed.FS
@@ -119,6 +140,14 @@ func formatTimeDisplay(t string) string {
 	return fmt.Sprintf("%d:%s %s", h12, parts[1], period)
 }
 
+func formatTimestampDisplay(ts string) string {
+	parsed, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return ts
+	}
+	return parsed.Local().Format("01/02/2006 3:04 PM")
+}
+
 func money(v float64) string {
 	return fmt.Sprintf("$%.2f", v)
 }
@@ -174,6 +203,7 @@ func loadDotEnv(path string) {
 var funcMap = template.FuncMap{
 	"formatDate":   formatDateDisplay,
 	"formatTime":   formatTimeDisplay,
+	"formatTS":     formatTimestampDisplay,
 	"money":        money,
 	"priceInput":   priceInput,
 	"total":        totalOf,
@@ -455,12 +485,16 @@ type InvoiceViewPage struct {
 	InvoiceID   int64
 	ClientID    int64
 	Title       string
+	Photos      []InvoicePhoto
 	CSRFToken   string
 	EmailSent   bool
 	EmailError  string
+	EmailWarn   string
+	PhotoError  string
 	EmailTo     string
 	DefaultCC   string
 	ShowCC      bool
+	AttachZip   bool
 	IsAdmin     bool
 	Username    string
 	DisplayName string
@@ -485,12 +519,24 @@ func invoiceViewHandler(w http.ResponseWriter, r *http.Request) {
 		CSRFToken:   currentCSRFToken(r),
 		EmailSent:   r.URL.Query().Get("emailed") == "1",
 		EmailError:  r.URL.Query().Get("emailerror"),
+		EmailWarn:   r.URL.Query().Get("emailwarn"),
+		PhotoError:  r.URL.Query().Get("photoerror"),
 		EmailTo:     r.URL.Query().Get("to"),
 		DefaultCC:   r.URL.Query().Get("cc"),
 		ShowCC:      r.URL.Query().Get("ccopen") == "1",
+		AttachZip:   r.URL.Query().Get("zip") == "1",
 		IsAdmin:     isAdmin(r),
 		Username:    currentUsername(r),
 		DisplayName: currentDisplayName(r),
+	}
+	photos, err := listInvoicePhotos(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view.Photos = photos
+	if _, hasZip := r.URL.Query()["zip"]; !hasZip && len(view.Photos) > 0 {
+		view.AttachZip = true
 	}
 	if view.EmailTo == "" {
 		view.EmailTo = inv.Email
@@ -623,11 +669,16 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 	to := strings.TrimSpace(r.FormValue("to"))
 	cc := strings.TrimSpace(r.FormValue("cc"))
 	ccOpen := r.FormValue("cc_open") == "1"
+	attachZip := r.FormValue("attach_evidence_zip") == "1"
+	emailWarn := ""
 	redirectWithError := func(msg string) {
 		q := url.Values{}
 		q.Set("emailerror", msg)
 		q.Set("to", to)
 		q.Set("cc", cc)
+		if attachZip {
+			q.Set("zip", "1")
+		}
 		if ccOpen || cc != "" {
 			q.Set("ccopen", "1")
 		}
@@ -651,7 +702,34 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 
 	subject := fmt.Sprintf("Invoice from Electroclima Pro Services - %s", formatDateDisplay(inv.InvoiceDate))
 	body := fmt.Sprintf("Hello %s,\n\nPlease find attached your invoice from Electroclima Pro Services, LLC.\n\nTotal Amount Due: %s\n\nThank you for your business!\n\nElectroclima Pro Services, LLC\n786 389 3330", inv.ClientName, money(totalOf(inv.Jobs)))
-	if err := sendInvoiceEmail(to, cc, subject, body, pdfBytes, invoiceFilename(title)); err != nil {
+	attachments := []emailAttachment{{
+		Filename:    invoiceFilename(title),
+		ContentType: "application/pdf",
+		Data:        pdfBytes,
+	}}
+	if attachZip {
+		photos, err := listInvoicePhotos(id)
+		if err != nil {
+			redirectWithError("Could not load evidence photos.")
+			return
+		}
+		zipBytes, zipName, err := buildInvoiceEvidenceZip(id, photos)
+		if err != nil {
+			redirectWithError("Could not attach evidence ZIP: " + err.Error())
+			return
+		}
+		maxZip := evidenceZipEmailMaxBytes()
+		if len(zipBytes) > maxZip {
+			emailWarn = fmt.Sprintf("Evidence ZIP is too large (%s). Sent invoice PDF without ZIP. Limit is %s.", humanBytes(int64(len(zipBytes))), humanBytes(int64(maxZip)))
+		} else {
+			attachments = append(attachments, emailAttachment{
+				Filename:    zipName,
+				ContentType: "application/zip",
+				Data:        zipBytes,
+			})
+		}
+	}
+	if err := sendInvoiceEmailWithAttachments(to, cc, subject, body, attachments); err != nil {
 		redirectWithError("Could not send the email: " + err.Error())
 		return
 	}
@@ -660,10 +738,246 @@ func invoiceEmailHandler(w http.ResponseWriter, r *http.Request) {
 	q.Set("emailed", "1")
 	q.Set("to", to)
 	q.Set("cc", cc)
+	if emailWarn != "" {
+		q.Set("emailwarn", emailWarn)
+	}
+	if attachZip {
+		q.Set("zip", "1")
+	}
 	if ccOpen || cc != "" {
 		q.Set("ccopen", "1")
 	}
 	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?%s", id, q.Encode()), http.StatusSeeOther)
+}
+
+func humanBytes(v int64) string {
+	const unit = 1024
+	if v < unit {
+		return fmt.Sprintf("%d B", v)
+	}
+	div, exp := int64(unit), 0
+	for n := v / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(v)/float64(div), "KMGTPE"[exp])
+}
+
+func buildInvoiceEvidenceZip(invoiceID int64, photos []InvoicePhoto) ([]byte, string, error) {
+	if len(photos) == 0 {
+		return nil, "", fmt.Errorf("no evidence photos attached")
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	for i, p := range photos {
+		rc, _, err := openInvoicePhotoObject(p.ObjectKey)
+		if err != nil {
+			zw.Close()
+			return nil, "", err
+		}
+		content, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			zw.Close()
+			return nil, "", err
+		}
+
+		name := sanitizeZipEntryName(p.Filename)
+		if name == "" {
+			name = fmt.Sprintf("photo_%d.jpg", i+1)
+		}
+		entryName := fmt.Sprintf("%03d_%s", i+1, name)
+		w, err := zw.Create(entryName)
+		if err != nil {
+			zw.Close()
+			return nil, "", err
+		}
+		if _, err := w.Write(content); err != nil {
+			zw.Close()
+			return nil, "", err
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), fmt.Sprintf("invoice_%d_evidence.zip", invoiceID), nil
+}
+
+func sanitizeZipEntryName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	name = strings.ReplaceAll(name, "\\", "_")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "..", "_")
+	return name
+}
+
+func invoicePhotoUploadHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, _, err := getInvoiceWithJobs(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	redirectWithError := func(msg string) {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape(msg)), http.StatusSeeOther)
+	}
+
+	if err := r.ParseMultipartForm(maxEvidencePhotoBytes + (1 << 20)); err != nil {
+		redirectWithError("Could not read uploaded file.")
+		return
+	}
+	headers := r.MultipartForm.File["photo"]
+	if len(headers) == 0 {
+		redirectWithError("Please select a photo file to upload.")
+		return
+	}
+	uploader := currentUsername(r)
+	success := 0
+	failures := 0
+
+	for _, header := range headers {
+		file, err := header.Open()
+		if err != nil {
+			failures++
+			continue
+		}
+		content, err := io.ReadAll(io.LimitReader(file, maxEvidencePhotoBytes+1))
+		file.Close()
+		if err != nil {
+			failures++
+			continue
+		}
+		if len(content) == 0 || len(content) > maxEvidencePhotoBytes {
+			failures++
+			continue
+		}
+
+		contentType := http.DetectContentType(content)
+		switch contentType {
+		case "image/jpeg", "image/png", "image/webp":
+		default:
+			failures++
+			continue
+		}
+
+		objectKey, err := uploadInvoicePhoto(id, header.Filename, contentType, content)
+		if err != nil {
+			failures++
+			continue
+		}
+		if _, err := createInvoicePhoto(id, objectKey, sanitizeFilename(header.Filename), contentType, uploader, int64(len(content))); err != nil {
+			_ = deleteInvoicePhotoObject(objectKey)
+			failures++
+			continue
+		}
+		success++
+	}
+
+	if success == 0 {
+		redirectWithError("No photos were uploaded. Make sure files are JPG, PNG, or WEBP and under 10 MB each.")
+		return
+	}
+	if failures > 0 {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape(fmt.Sprintf("Uploaded %d photos; %d failed validation or upload.", success, failures))), http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view", id), http.StatusSeeOther)
+}
+
+func invoicePhotoViewHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photoID, err := strconv.ParseInt(r.PathValue("photoID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photo, err := getInvoicePhoto(photoID)
+	if err != nil || photo.InvoiceID != id {
+		http.NotFound(w, r)
+		return
+	}
+	body, detectedContentType, err := openInvoicePhotoObject(photo.ObjectKey)
+	if err != nil {
+		http.Error(w, "could not open photo", http.StatusInternalServerError)
+		return
+	}
+	defer body.Close()
+
+	contentType := detectedContentType
+	if contentType == "" {
+		contentType = photo.ContentType
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", photo.Filename))
+	if _, err := io.Copy(w, body); err != nil {
+		http.Error(w, "could not stream photo", http.StatusInternalServerError)
+	}
+}
+
+func invoicePhotoDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photoID, err := strconv.ParseInt(r.PathValue("photoID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photo, err := getInvoicePhoto(photoID)
+	if err != nil || photo.InvoiceID != id {
+		http.NotFound(w, r)
+		return
+	}
+
+	_ = deleteInvoicePhotoObject(photo.ObjectKey)
+	if err := deleteInvoicePhoto(photoID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view", id), http.StatusSeeOther)
+}
+
+func invoicePhotosZipHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, _, err := getInvoiceWithJobs(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photos, err := listInvoicePhotos(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	zipBytes, zipName, err := buildInvoiceEvidenceZip(id, photos)
+	if err != nil {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape("No evidence photos available to download.")), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", zipName))
+	w.Write(zipBytes)
 }
 
 func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
@@ -732,6 +1046,10 @@ func main() {
 	mux.HandleFunc("GET /invoices/{id}/view", requireAuth(requireSignature(invoiceViewHandler)))
 	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(requireSignature(invoiceDownloadHandler)))
 	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(requireSignature(invoiceEmailHandler)))
+	mux.HandleFunc("POST /invoices/{id}/photos", requireCSRF(requireSignature(invoicePhotoUploadHandler)))
+	mux.HandleFunc("GET /invoices/{id}/photos/{photoID}", requireAuth(requireSignature(invoicePhotoViewHandler)))
+	mux.HandleFunc("POST /invoices/{id}/photos/{photoID}/delete", requireCSRF(requireSignature(invoicePhotoDeleteHandler)))
+	mux.HandleFunc("GET /invoices/{id}/photos.zip", requireAuth(requireSignature(invoicePhotosZipHandler)))
 	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(requireSignature(invoiceEditHandler)))
 	mux.HandleFunc("POST /invoices/{id}/delete", requireAdmin(requireCSRF(invoiceDeleteHandler)))
 	mux.HandleFunc("POST /invoices/{id}/paid", requireAdmin(requireCSRF(invoicePaidHandler)))

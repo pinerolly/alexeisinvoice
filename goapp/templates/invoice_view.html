@@ -118,6 +118,119 @@
       .email-form input[name="cc"].hidden {
         display: none;
       }
+      .photo-row {
+        max-width: 850px;
+        margin: 0 auto 16px auto;
+        background: #fff;
+        border-radius: 6px;
+        padding: 12px;
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      .photo-row h3 {
+        margin: 0 0 8px;
+        color: var(--primary);
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+      .photo-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .photo-form input[type="file"] {
+        font-size: 13px;
+      }
+      .photo-form button {
+        border: none;
+        background: var(--primary);
+        color: #fff;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .photo-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .photo-card {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .photo-card a {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+      }
+      .photo-card img {
+        display: block;
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        background: #f3f6f8;
+      }
+      .photo-meta {
+        padding: 8px;
+        font-size: 12px;
+        color: #445;
+      }
+      .photo-name {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .photo-delete {
+        margin-top: 6px;
+      }
+      .photo-delete button {
+        border: none;
+        background: #b3261e;
+        color: #fff;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .photo-extra {
+        margin-top: 4px;
+        color: #667;
+      }
+      .photo-actions {
+        margin-top: 10px;
+      }
+      .photo-actions a {
+        display: inline-block;
+        text-decoration: none;
+        background: var(--primary);
+        color: #fff;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .attach-zip-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: 8px;
+        font-size: 12px;
+        color: #334;
+      }
+      .attach-zip-note {
+        margin-right: 10px;
+        font-size: 12px;
+        color: #556;
+        white-space: nowrap;
+      }
       .invoice {
         max-width: 850px;
         margin: auto;
@@ -343,6 +456,11 @@
         color: #842029;
         border: 1px solid #f5c2c7;
       }
+      .banner.warn {
+        background: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+      }
       .status-badge {
         display: inline-block;
         padding: 2px 8px;
@@ -383,6 +501,12 @@
     {{end}} {{if .EmailError}}
     <div class="banner error">{{.EmailError}}</div>
     {{end}}
+    {{if .EmailWarn}}
+    <div class="banner warn">{{.EmailWarn}}</div>
+    {{end}}
+    {{if .PhotoError}}
+    <div class="banner error">{{.PhotoError}}</div>
+    {{end}}
 
     <div class="toolbar">
       <a class="secondary" href="/clients/{{.ClientID}}">Invoice History</a>
@@ -415,6 +539,11 @@
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
         <input type="hidden" name="cc_open" value="{{if .ShowCC}}1{{else}}0{{end}}" />
+        <label class="attach-zip-toggle">
+          <input type="checkbox" name="attach_evidence_zip" value="1" {{if .AttachZip}}checked{{end}} />
+          Attach Photos ZIP
+        </label>
+        <span class="attach-zip-note">Client receives all work photos in a ZIP.</span>
         <input
           type="email"
           name="to"
@@ -432,6 +561,55 @@
         />
         <button type="submit">Email PDF</button>
       </form>
+    </div>
+
+    <div class="photo-row">
+      <h3>Work Evidence Photos</h3>
+      <form
+        method="POST"
+        action="/invoices/{{.InvoiceID}}/photos"
+        enctype="multipart/form-data"
+        class="photo-form"
+      >
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+        <input
+          type="file"
+          name="photo"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          required
+          onchange="autoUploadPhotos(this)"
+        />
+      </form>
+      {{if .Photos}}
+      <div class="photo-actions">
+        <a href="/invoices/{{.InvoiceID}}/photos.zip">Download All as ZIP</a>
+      </div>
+      <div class="photo-grid">
+        {{range .Photos}}
+        <div class="photo-card">
+          <a href="/invoices/{{$.InvoiceID}}/photos/{{.ID}}" target="_blank" rel="noopener">
+            <img src="/invoices/{{$.InvoiceID}}/photos/{{.ID}}" alt="Work evidence photo" />
+          </a>
+          <div class="photo-meta">
+            <span class="photo-name" title="{{.Filename}}">{{.Filename}}</span>
+            <div class="photo-extra">
+              By {{if .Uploader}}{{.Uploader}}{{else}}unknown{{end}} on {{formatTS .CreatedAt}}
+            </div>
+            <form
+              method="POST"
+              action="/invoices/{{$.InvoiceID}}/photos/{{.ID}}/delete"
+              class="photo-delete"
+              onsubmit="return confirm('Delete this photo evidence?');"
+            >
+              <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />
+              <button type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
     </div>
 
     <div class="invoice">
@@ -573,6 +751,26 @@
           if (toggle) toggle.textContent = "Undo";
         }
       });
+
+      function autoUploadPhotos(input) {
+        if (!input || !input.files || input.files.length === 0) {
+          return;
+        }
+        var form = input.closest("form");
+        if (!form) {
+          return;
+        }
+        if (form.dataset.submitting === "1") {
+          return;
+        }
+        form.dataset.submitting = "1";
+
+        var zipCheckbox = document.querySelector('input[name="attach_evidence_zip"]');
+        if (zipCheckbox) {
+          zipCheckbox.checked = true;
+        }
+        form.submit();
+      }
     </script>
   </body>
 </html>
