@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --charcoal: #15181c;
+        --charcoal-2: #1d2126;
+        --panel: #22262c;
+        --steel: #4d7d9c;
+        --steel-light: #7fa9c4;
+        --cyan: #6fd6d1;
+        --silver: #aab4bd;
+        --silver-dim: #6b747c;
+        --amber: #e8a33d;
+        --white: #eef1f3;
+        --line: #333a41;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--charcoal);
+        color: var(--white);
+        font-family: "Inter", sans-serif;
+        line-height: 1.55;
+        overflow-x: hidden;
+      }
+      h1,
+      h2,
+      h3,
+      .brand,
+      .service-name {
+        font-family: "Oswald", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 28px;
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--cyan);
+        outline-offset: 3px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(21, 24, 28, 0.92);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 78px;
+        gap: 20px;
+      }
+      .brand {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand .dot {
+        width: 9px;
+        height: 9px;
+        background: var(--cyan);
+        border-radius: 50%;
+        box-shadow: 0 0 8px var(--cyan);
+        flex-shrink: 0;
+      }
+      .brand small {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        color: var(--silver-dim);
+        text-transform: none;
+        letter-spacing: 0.05em;
+        display: block;
+        margin-top: 2px;
+      }
+      nav ul {
+        display: flex;
+        gap: 30px;
+        list-style: none;
+      }
+      nav ul li a {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--silver);
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+      nav ul li a:hover {
+        color: var(--cyan);
+      }
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .lang-toggle {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 3px;
+        background: var(--charcoal-2);
+      }
+      .lang-toggle button {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        background: transparent;
+        border: none;
+        color: var(--silver-dim);
+        padding: 6px 10px;
+        border-radius: 14px;
+        cursor: pointer;
+      }
+      .lang-toggle button.active {
+        background: var(--steel);
+        color: var(--white);
+      }
+      .call-btn,
+      .portal-btn {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        padding: 10px 15px;
+        border-radius: 3px;
+        font-weight: 500;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .call-btn {
+        background: var(--amber);
+        color: #1a1305;
+      }
+      .portal-btn {
+        background: var(--steel);
+        color: var(--white);
+      }
+      .call-btn:hover,
+      .portal-btn:hover {
+        transform: translateY(-1px);
+      }
+      .call-btn:hover {
+        box-shadow: 0 4px 14px rgba(232, 163, 61, 0.35);
+      }
+      .portal-btn:hover {
+        box-shadow: 0 4px 14px rgba(77, 125, 156, 0.45);
+      }
+
+      .hero {
+        position: relative;
+        padding: 92px 0 70px;
+        border-bottom: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: -20% auto auto -20%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(127, 169, 196, 0.2), transparent 70%);
+        pointer-events: none;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 50px;
+        align-items: center;
+      }
+      .eyebrow {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--cyan);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 26px;
+        height: 1px;
+        background: var(--cyan);
+      }
+      .hero h1 {
+        font-size: clamp(38px, 5vw, 58px);
+        line-height: 1.05;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 20px;
+      }
+      .hero h1 span {
+        color: var(--steel-light);
+      }
+      .hero p {
+        font-size: 17px;
+        color: var(--silver);
+        max-width: 510px;
+        margin-bottom: 34px;
+      }
+      .hero-ctas {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 34px;
+      }
+      .btn-primary {
+        background: var(--amber);
+        color: #1a1305;
+        padding: 14px 24px;
+        border-radius: 3px;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .btn-secondary {
+        border: 1px solid var(--line);
+        color: var(--white);
+        padding: 14px 24px;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .btn-secondary:hover {
+        border-color: var(--steel-light);
+        color: var(--steel-light);
+      }
+      .hero-stats {
+        display: flex;
+        gap: 30px;
+      }
+      .hero-stats div {
+        border-left: 2px solid var(--steel);
+        padding-left: 14px;
+      }
+      .hero-stats strong {
+        display: block;
+        font-family: "Oswald", sans-serif;
+        font-size: 26px;
+        color: var(--white);
+      }
+      .hero-stats span {
+        font-size: 12px;
+        color: var(--silver-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .sheet {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 22px;
+        box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+      }
+      .sheet-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 10px;
+      }
+      .sheet-title {
+        font-size: 20px;
+        font-family: "Oswald", sans-serif;
+      }
+      .sheet-meta {
+        font-size: 11px;
+        color: var(--silver-dim);
+      }
+      .sheet-box {
+        border: 1px solid var(--line);
+        background: var(--charcoal-2);
+        padding: 10px;
+        margin-top: 10px;
+      }
+      .sheet-box h3 {
+        font-size: 11px;
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--cyan);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .sheet-box p {
+        font-size: 13.5px;
+        color: var(--silver);
+      }
+      .sheet-lines {
+        margin-top: 10px;
+      }
+      .sheet-line {
+        border-bottom: 1px solid var(--line);
+        min-height: 30px;
+      }
+
+      .section {
+        padding: 84px 0;
+      }
+      .section-head {
+        max-width: 680px;
+        margin-bottom: 48px;
+      }
+      .section-head h2 {
+        font-size: clamp(28px, 3.5vw, 40px);
+        color: var(--white);
+        margin-bottom: 14px;
+      }
+      .section-head p {
+        color: var(--silver);
+        font-size: 15px;
+      }
+
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .service-card {
+        background: var(--charcoal-2);
+        padding: 26px;
+      }
+      .service-card h3 {
+        font-size: 17px;
+        margin-bottom: 10px;
+      }
+      .service-card p {
+        font-size: 14px;
+        color: var(--silver-dim);
+      }
+      .service-tag {
+        display: inline-block;
+        margin-top: 14px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--steel-light);
+        border: 1px solid var(--steel);
+        padding: 3px 8px;
+        border-radius: 2px;
+      }
+
+      .proof-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+      }
+      .proof-card {
+        background: var(--charcoal-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 22px;
+      }
+      .proof-card h3 {
+        font-size: 17px;
+        margin-bottom: 10px;
+      }
+      .proof-card p {
+        font-size: 14px;
+        color: var(--silver);
+      }
+
+      .contact {
+        background: var(--panel);
+        border-top: 1px solid var(--line);
+      }
+      .contact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+      }
+      .contact h2 {
+        font-size: clamp(26px, 3vw, 34px);
+        margin-bottom: 14px;
+      }
+      .contact p {
+        color: var(--silver);
+        margin-bottom: 20px;
+        max-width: 460px;
+      }
+      .contact-line {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 14px;
+        color: var(--white);
+        font-size: 14px;
+      }
+      .contact-line .k {
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--silver-dim);
+        font-size: 11px;
+        text-transform: uppercase;
+        width: 90px;
+        flex-shrink: 0;
+      }
+      .contact-panel {
+        background: var(--charcoal-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 20px;
+      }
+      .contact-panel h3 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+      .request-banner {
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .request-banner.ok {
+        background: rgba(111, 214, 209, 0.14);
+        border: 1px solid rgba(111, 214, 209, 0.4);
+        color: #b6f8f4;
+      }
+      .request-banner.err {
+        background: rgba(232, 83, 83, 0.14);
+        border: 1px solid rgba(232, 83, 83, 0.42);
+        color: #ffc9c9;
+      }
+      .request-form {
+        display: grid;
+        gap: 10px;
+      }
+      .request-form label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--silver-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .request-form input,
+      .request-form select,
+      .request-form textarea {
+        width: 100%;
+        background: #171b20;
+        border: 1px solid var(--line);
+        color: var(--white);
+        border-radius: 4px;
+        padding: 10px 11px;
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+      }
+      .request-form textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+      .request-form button {
+        border: none;
+        background: var(--amber);
+        color: #1a1305;
+        border-radius: 4px;
+        padding: 12px;
+        font-family: "Oswald", sans-serif;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        cursor: pointer;
+      }
+      .request-form .hp {
+        position: absolute;
+        left: -9999px;
+      }
+      .request-note {
+        color: var(--silver-dim);
+        font-size: 12px;
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 22px 0;
+        text-align: center;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11.5px;
+        color: var(--silver-dim);
+      }
+
+      @media (max-width: 980px) {
+        .hero-grid,
+        .contact-grid,
+        .proof-grid {
+          grid-template-columns: 1fr;
+        }
+        .services-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        nav ul {
+          display: none;
+        }
+      }
+      @media (max-width: 640px) {
+        .services-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero {
+          padding-top: 64px;
+        }
+        .hero-stats {
+          flex-direction: column;
+          gap: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap nav">
+        <div class="brand">
+          <span class="dot"></span>
+          <div>
+            ELECTROCLIMA
+            <small data-i18n="brand_tag">HVAC and field service records</small>
+          </div>
+        </div>
+        <nav>
+          <ul>
+            <li><a href="#services" data-i18n="nav_services">Services</a></li>
+            <li><a href="#records" data-i18n="nav_records">Records</a></li>
+            <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+          </ul>
+        </nav>
+        <div class="nav-right">
+          <div class="lang-toggle" role="group" aria-label="Language selector">
+            <button type="button" id="btn-en" onclick="setLang('en')">EN</button>
+            <button type="button" id="btn-es" onclick="setLang('es')">ES</button>
+          </div>
+          <a class="call-btn" href="tel:7863893330" data-i18n="call_btn">Call 786 389 3330</a>
+          <a class="portal-btn" href="/login" data-i18n="portal_btn">Worker Portal</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow" data-i18n="hero_eyebrow">Miami service visits with documented work</div>
+          <h1>
+            <span data-i18n="hero_h1_line1">Cooling issues fixed in the field.</span><br />
+            <span data-i18n="hero_h1_line2">Work clearly documented.</span>
+          </h1>
+          <p data-i18n="hero_p">
+            Electroclima Pro Services supports homeowners, property managers,
+            and small businesses with HVAC diagnostics, airflow correction,
+            return duct improvements, and invoice-backed service records.
+          </p>
+          <div class="hero-ctas">
+            <a class="btn-primary" href="#contact" data-i18n="hero_cta1">Request Service</a>
+            <a class="btn-secondary" href="mailto:alexoptano@yahoo.com" data-i18n="hero_cta2">Email Us</a>
+          </div>
+          <div class="hero-stats">
+            <div><strong>24/7</strong><span data-i18n="stat1">Emergency response</span></div>
+            <div><strong>100%</strong><span data-i18n="stat2">Signed service records</span></div>
+            <div><strong data-i18n="stat3_value">Local</strong><span data-i18n="stat3">Miami based team</span></div>
+          </div>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-head">
+            <div class="sheet-title">Electroclima Pro Services, LLC</div>
+            <div class="sheet-meta mono" data-i18n="sheet_preview">Field sheet preview</div>
+          </div>
+          <div class="sheet-box">
+            <h3 data-i18n="sheet_contact">Contact</h3>
+            <p>10530 NW 35 CT Miami, FL 33147</p>
+            <p>786 389 3330</p>
+            <p>alexoptano@yahoo.com</p>
+          </div>
+          <div class="sheet-box">
+            <h3 data-i18n="sheet_focus">Service Focus</h3>
+            <p data-i18n="sheet_focus_p">
+              A/C diagnostics, airflow fixes, return duct corrections, and
+              complete job documentation per visit.
+            </p>
+          </div>
+          <div class="sheet-box sheet-lines">
+            <h3 data-i18n="sheet_desc">Description of Work Performance</h3>
+            <div class="sheet-line"></div>
+            <div class="sheet-line"></div>
+            <div class="sheet-line"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="services">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="eyebrow" data-i18n="services_eyebrow">What we do</div>
+          <h2 data-i18n="services_h2">Residential and light commercial HVAC service</h2>
+          <p data-i18n="services_p">
+            Public customers can review services here. Internal invoices,
+            technician signatures, and evidence uploads remain in the protected
+            company portal.
+          </p>
+        </div>
+        <div class="services-grid">
+          <div class="service-card">
+            <h3 data-i18n="svc1_h">Diagnostics and troubleshooting</h3>
+            <p data-i18n="svc1_p">We identify cooling and airflow problems before proposing repairs.</p>
+            <span class="service-tag" data-i18n="svc1_t">On-site analysis</span>
+          </div>
+          <div class="service-card">
+            <h3 data-i18n="svc2_h">Airflow and duct corrections</h3>
+            <p data-i18n="svc2_p">Return path resizing, grille updates, and duct routing corrections.</p>
+            <span class="service-tag" data-i18n="svc2_t">Performance focused</span>
+          </div>
+          <div class="service-card">
+            <h3 data-i18n="svc3_h">Documented completion</h3>
+            <p data-i18n="svc3_p">Every finished visit can include signed records and evidence photos.</p>
+            <span class="service-tag" data-i18n="svc3_t">Traceable records</span>
+          </div>
+          <div class="service-card">
+            <h3 data-i18n="svc4_h">Maintenance visits</h3>
+            <p data-i18n="svc4_p">Periodic checks to reduce unexpected failures and repeat issues.</p>
+            <span class="service-tag" data-i18n="svc4_t">Preventive care</span>
+          </div>
+          <div class="service-card">
+            <h3 data-i18n="svc5_h">Client communication</h3>
+            <p data-i18n="svc5_p">Clear summary of work performed and transparent service details.</p>
+            <span class="service-tag" data-i18n="svc5_t">Easy to understand</span>
+          </div>
+          <div class="service-card">
+            <h3 data-i18n="svc6_h">Invoice and email delivery</h3>
+            <p data-i18n="svc6_p">Professional PDF invoice delivery with optional photo ZIP bundle.</p>
+            <span class="service-tag" data-i18n="svc6_t">Digital workflow</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="records">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="eyebrow" data-i18n="records_eyebrow">Why customers trust us</div>
+          <h2 data-i18n="records_h2">Clear process, clear proof</h2>
+        </div>
+        <div class="proof-grid">
+          <article class="proof-card">
+            <h3 data-i18n="proof1_h">Signed Service Records</h3>
+            <p data-i18n="proof1_p">
+              Each completed visit ties technician and customer signoff to a
+              specific invoice record.
+            </p>
+          </article>
+          <article class="proof-card">
+            <h3 data-i18n="proof2_h">Evidence Photos</h3>
+            <p data-i18n="proof2_p">
+              When needed, work evidence can be captured and included for later
+              review and client delivery.
+            </p>
+          </article>
+          <article class="proof-card">
+            <h3 data-i18n="proof3_h">Internal Control</h3>
+            <p data-i18n="proof3_p">
+              Internal tools are separated from this public site and only
+              accessible through the secure worker portal.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section contact" id="contact">
+      <div class="wrap contact-grid">
+        <div>
+          <h2 data-i18n="contact_h2">Need service in Miami?</h2>
+          <p data-i18n="contact_p">
+            Contact Electroclima Pro Services for diagnostics, repair, and
+            documented field work. We keep communication direct and clear.
+          </p>
+          <div class="contact-line"><span class="k" data-i18n="phone_k">Phone</span><span>786 389 3330</span></div>
+          <div class="contact-line"><span class="k" data-i18n="email_k">Email</span><span>alexoptano@yahoo.com</span></div>
+          <div class="contact-line"><span class="k" data-i18n="address_k">Address</span><span>10530 NW 35 CT, Miami, FL 33147</span></div>
+        </div>
+        <div class="contact-panel">
+          <h3 data-i18n="request_h">Request Service</h3>
+          {{if .RequestSent}}
+          <div class="request-banner ok" data-i18n="request_ok">Request received. Our team will contact you soon.</div>
+          {{end}}
+          {{if .RequestError}}
+          <div class="request-banner err">{{.RequestError}}</div>
+          {{end}}
+          <form class="request-form" method="POST" action="/service-request">
+            <label for="req-name" data-i18n="f_name">Name</label>
+            <input id="req-name" name="name" value="{{.RequestName}}" required />
+
+            <label for="req-phone" data-i18n="f_phone">Phone</label>
+            <input id="req-phone" name="phone" value="{{.RequestPhone}}" />
+
+            <label for="req-email" data-i18n="f_email">Email</label>
+            <input id="req-email" name="email" type="email" value="{{.RequestEmail}}" />
+
+            <label for="req-service" data-i18n="f_service">Service Type</label>
+            <select id="req-service" name="service_type">
+              <option value="" {{if eq .RequestService ""}}selected{{end}} data-i18n="f_service_opt0">Select one</option>
+              <option value="Diagnostics" {{if eq .RequestService "Diagnostics"}}selected{{end}} data-i18n="f_service_opt1">Diagnostics</option>
+              <option value="Airflow and ducts" {{if eq .RequestService "Airflow and ducts"}}selected{{end}} data-i18n="f_service_opt2">Airflow and ducts</option>
+              <option value="Maintenance" {{if eq .RequestService "Maintenance"}}selected{{end}} data-i18n="f_service_opt3">Maintenance</option>
+              <option value="Repair" {{if eq .RequestService "Repair"}}selected{{end}} data-i18n="f_service_opt4">Repair</option>
+              <option value="Other" {{if eq .RequestService "Other"}}selected{{end}} data-i18n="f_service_opt5">Other</option>
+            </select>
+
+            <label for="req-message" data-i18n="f_message">Message</label>
+            <textarea id="req-message" name="message">{{.RequestMessage}}</textarea>
+
+            <input class="hp" name="website" autocomplete="off" tabindex="-1" />
+            <button type="submit" data-i18n="f_submit">Send Request</button>
+            <p class="request-note" data-i18n="f_note">Leave phone or email so we can contact you.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <footer data-i18n="footer_text">
+      Electroclima Pro Services, LLC • Public website • Internal tools remain protected
+    </footer>
+    <script>
+      const i18n = {
+        en: {
+          brand_tag: "HVAC and field service records",
+          nav_services: "Services",
+          nav_records: "Records",
+          nav_contact: "Contact",
+          call_btn: "Call 786 389 3330",
+          portal_btn: "Worker Portal",
+          hero_eyebrow: "Miami service visits with documented work",
+          hero_h1_line1: "Cooling issues fixed in the field.",
+          hero_h1_line2: "Work clearly documented.",
+          hero_p: "Electroclima Pro Services supports homeowners, property managers, and small businesses with HVAC diagnostics, airflow correction, return duct improvements, and invoice-backed service records.",
+          hero_cta1: "Request Service",
+          hero_cta2: "Email Us",
+          stat1: "Emergency response",
+          stat2: "Signed service records",
+          stat3_value: "Local",
+          stat3: "Miami based team",
+          sheet_preview: "Field sheet preview",
+          sheet_contact: "Contact",
+          sheet_focus: "Service Focus",
+          sheet_focus_p: "A/C diagnostics, airflow fixes, return duct corrections, and complete job documentation per visit.",
+          sheet_desc: "Description of Work Performance",
+          services_eyebrow: "What we do",
+          services_h2: "Residential and light commercial HVAC service",
+          services_p: "Public customers can review services here. Internal invoices, technician signatures, and evidence uploads remain in the protected company portal.",
+          svc1_h: "Diagnostics and troubleshooting",
+          svc1_p: "We identify cooling and airflow problems before proposing repairs.",
+          svc1_t: "On-site analysis",
+          svc2_h: "Airflow and duct corrections",
+          svc2_p: "Return path resizing, grille updates, and duct routing corrections.",
+          svc2_t: "Performance focused",
+          svc3_h: "Documented completion",
+          svc3_p: "Every finished visit can include signed records and evidence photos.",
+          svc3_t: "Traceable records",
+          svc4_h: "Maintenance visits",
+          svc4_p: "Periodic checks to reduce unexpected failures and repeat issues.",
+          svc4_t: "Preventive care",
+          svc5_h: "Client communication",
+          svc5_p: "Clear summary of work performed and transparent service details.",
+          svc5_t: "Easy to understand",
+          svc6_h: "Invoice and email delivery",
+          svc6_p: "Professional PDF invoice delivery with optional photo ZIP bundle.",
+          svc6_t: "Digital workflow",
+          records_eyebrow: "Why customers trust us",
+          records_h2: "Clear process, clear proof",
+          proof1_h: "Signed Service Records",
+          proof1_p: "Each completed visit ties technician and customer signoff to a specific invoice record.",
+          proof2_h: "Evidence Photos",
+          proof2_p: "When needed, work evidence can be captured and included for later review and client delivery.",
+          proof3_h: "Internal Control",
+          proof3_p: "Internal tools are separated from this public site and only accessible through the secure worker portal.",
+          contact_h2: "Need service in Miami?",
+          contact_p: "Contact Electroclima Pro Services for diagnostics, repair, and documented field work. We keep communication direct and clear.",
+          phone_k: "Phone",
+          email_k: "Email",
+          address_k: "Address",
+          coverage_h: "Service Coverage",
+          coverage_1: "Residential HVAC troubleshooting",
+          coverage_2: "Light commercial cooling support",
+          coverage_3: "Airflow and return-side corrections",
+          coverage_4: "Invoice and record documentation",
+          coverage_5: "Worker portal for internal operations",
+          footer_text: "Electroclima Pro Services, LLC • Public website • Internal tools remain protected",
+          request_h: "Request Service",
+          request_ok: "Request received. Our team will contact you soon.",
+          f_name: "Name",
+          f_phone: "Phone",
+          f_email: "Email",
+          f_service: "Service Type",
+          f_service_opt0: "Select one",
+          f_service_opt1: "Diagnostics",
+          f_service_opt2: "Airflow and ducts",
+          f_service_opt3: "Maintenance",
+          f_service_opt4: "Repair",
+          f_service_opt5: "Other",
+          f_message: "Message",
+          f_submit: "Send Request",
+          f_note: "Leave phone or email so we can contact you."
+        },
+        es: {
+          brand_tag: "Registros de HVAC y servicios en campo",
+          nav_services: "Servicios",
+          nav_records: "Registros",
+          nav_contact: "Contacto",
+          call_btn: "Llamar 786 389 3330",
+          portal_btn: "Portal de Trabajadores",
+          hero_eyebrow: "Visitas de servicio en Miami con trabajo documentado",
+          hero_h1_line1: "Problemas de enfriamiento resueltos en campo.",
+          hero_h1_line2: "Trabajo claramente documentado.",
+          hero_p: "Electroclima Pro Services apoya a propietarios, administradores y pequenos negocios con diagnostico HVAC, correccion de flujo de aire, mejoras de retorno y registros de servicio respaldados por facturas.",
+          hero_cta1: "Solicitar Servicio",
+          hero_cta2: "Escribenos",
+          stat1: "Respuesta de emergencia",
+          stat2: "Registros firmados",
+          stat3_value: "Local",
+          stat3: "Equipo basado en Miami",
+          sheet_preview: "Vista previa de hoja de campo",
+          sheet_contact: "Contacto",
+          sheet_focus: "Enfoque del Servicio",
+          sheet_focus_p: "Diagnostico de A/C, mejoras de flujo de aire, correcciones de ductos de retorno y documentacion completa por visita.",
+          sheet_desc: "Descripcion del Trabajo Realizado",
+          services_eyebrow: "Que hacemos",
+          services_h2: "Servicio HVAC residencial y comercial liviano",
+          services_p: "Los clientes publicos pueden revisar nuestros servicios aqui. Las facturas internas, firmas de tecnicos y evidencia cargada permanecen en el portal protegido de la empresa.",
+          svc1_h: "Diagnostico y solucion de fallas",
+          svc1_p: "Identificamos problemas de enfriamiento y flujo de aire antes de proponer reparaciones.",
+          svc1_t: "Analisis en sitio",
+          svc2_h: "Correcciones de flujo y ductos",
+          svc2_p: "Ajuste de retorno, cambios de rejillas y correcciones de rutas de ductos.",
+          svc2_t: "Enfoque en rendimiento",
+          svc3_h: "Finalizacion documentada",
+          svc3_p: "Cada visita finalizada puede incluir registros firmados y fotos de evidencia.",
+          svc3_t: "Registros trazables",
+          svc4_h: "Visitas de mantenimiento",
+          svc4_p: "Revisiones periodicas para reducir fallas inesperadas y problemas repetidos.",
+          svc4_t: "Cuidado preventivo",
+          svc5_h: "Comunicacion con el cliente",
+          svc5_p: "Resumen claro del trabajo realizado y detalles transparentes del servicio.",
+          svc5_t: "Facil de entender",
+          svc6_h: "Entrega de factura y correo",
+          svc6_p: "Entrega profesional de factura PDF con opcion de ZIP de fotos.",
+          svc6_t: "Flujo digital",
+          records_eyebrow: "Por que los clientes confian",
+          records_h2: "Proceso claro, evidencia clara",
+          proof1_h: "Registros de servicio firmados",
+          proof1_p: "Cada visita terminada vincula la firma del tecnico y del cliente a un registro especifico de factura.",
+          proof2_h: "Fotos de evidencia",
+          proof2_p: "Cuando se necesita, se puede capturar evidencia del trabajo para revision y entrega al cliente.",
+          proof3_h: "Control interno",
+          proof3_p: "Las herramientas internas estan separadas de este sitio publico y solo se acceden desde el portal seguro.",
+          contact_h2: "Necesita servicio en Miami?",
+          contact_p: "Contacte a Electroclima Pro Services para diagnostico, reparacion y trabajo de campo documentado. Mantenemos una comunicacion directa y clara.",
+          phone_k: "Telefono",
+          email_k: "Correo",
+          address_k: "Direccion",
+          coverage_h: "Cobertura de Servicio",
+          coverage_1: "Diagnostico HVAC residencial",
+          coverage_2: "Soporte de enfriamiento comercial liviano",
+          coverage_3: "Correcciones de flujo de aire y retorno",
+          coverage_4: "Documentacion de facturas y registros",
+          coverage_5: "Portal de trabajadores para operaciones internas",
+          footer_text: "Electroclima Pro Services, LLC • Sitio publico • Herramientas internas protegidas",
+          request_h: "Solicitar Servicio",
+          request_ok: "Solicitud recibida. Nuestro equipo se comunicara pronto.",
+          f_name: "Nombre",
+          f_phone: "Telefono",
+          f_email: "Correo",
+          f_service: "Tipo de Servicio",
+          f_service_opt0: "Seleccione uno",
+          f_service_opt1: "Diagnostico",
+          f_service_opt2: "Flujo de aire y ductos",
+          f_service_opt3: "Mantenimiento",
+          f_service_opt4: "Reparacion",
+          f_service_opt5: "Otro",
+          f_message: "Mensaje",
+          f_submit: "Enviar Solicitud",
+          f_note: "Deje telefono o correo para poder contactarle."
+        }
+      };
+
+      function setLang(lang) {
+        const dict = i18n[lang] || i18n.en;
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (dict[key]) {
+            el.textContent = dict[key];
+          }
+        });
+        document.querySelectorAll("option[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (dict[key]) {
+            el.textContent = dict[key];
+          }
+        });
+        document.documentElement.lang = lang === "es" ? "es" : "en";
+        const enBtn = document.getElementById("btn-en");
+        const esBtn = document.getElementById("btn-es");
+        if (enBtn && esBtn) {
+          enBtn.classList.toggle("active", lang === "en");
+          esBtn.classList.toggle("active", lang === "es");
+        }
+        localStorage.setItem("public_lang", lang);
+      }
+
+      (function initLang() {
+        const saved = localStorage.getItem("public_lang");
+        setLang(saved === "es" ? "es" : "en");
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COLDLINE — Refrigeration & Electromechanical Services</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --charcoal:#15181c;
+    --charcoal-2:#1d2126;
+    --panel:#22262c;
+    --steel:#4d7d9c;
+    --steel-light:#7fa9c4;
+    --cyan:#6fd6d1;
+    --silver:#aab4bd;
+    --silver-dim:#6b747c;
+    --amber:#e8a33d;
+    --white:#eef1f3;
+    --line:#333a41;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--charcoal);
+    color:var(--white);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.brand{
+    font-family:'Oswald',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+  }
+  .mono{
+    font-family:'IBM Plex Mono',monospace;
+    letter-spacing:0.03em;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+  a:focus-visible, button:focus-visible{outline:2px solid var(--cyan); outline-offset:3px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(21,24,28,0.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{display:flex; align-items:center; justify-content:space-between; height:76px; gap:20px;}
+  .brand{font-size:22px; font-weight:700; color:var(--white); display:flex; align-items:center; gap:10px;}
+  .brand .dot{width:9px;height:9px;background:var(--cyan);border-radius:50%; box-shadow:0 0 8px var(--cyan); flex-shrink:0;}
+  .brand small{font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--silver-dim); text-transform:none; letter-spacing:0.05em; display:block; margin-top:2px;}
+  nav ul{display:flex; gap:34px; list-style:none;}
+  nav ul li a{font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--silver); font-weight:500; transition:color .2s;}
+  nav ul li a:hover{color:var(--cyan);}
+  .nav-right{display:flex; align-items:center; gap:14px;}
+  .lang-toggle{
+    display:flex; align-items:center; border:1px solid var(--line); border-radius:20px;
+    padding:3px; background:var(--charcoal-2); flex-shrink:0;
+  }
+  .lang-toggle button{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:0.04em;
+    background:transparent; border:none; color:var(--silver-dim); padding:6px 13px; border-radius:16px;
+    cursor:pointer; transition:background .2s, color .2s; font-weight:500;
+  }
+  .lang-toggle button.active{background:var(--steel); color:var(--white);}
+  .lang-toggle button:hover:not(.active){color:var(--silver);}
+  .call-btn{
+    background:var(--amber); color:#1a1305; font-family:'IBM Plex Mono',monospace;
+    font-weight:500; font-size:13px; padding:10px 18px; border-radius:3px;
+    display:flex; align-items:center; gap:8px; transition:transform .15s, box-shadow .15s;
+  }
+  .call-btn:hover{transform:translateY(-1px); box-shadow:0 4px 14px rgba(232,163,61,0.35);}
+
+  .hero{
+    position:relative;
+    padding:96px 0 70px;
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+  }
+  .hero-grid{
+    display:grid; grid-template-columns:1.05fr 0.95fr; gap:50px; align-items:center;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--cyan);
+    letter-spacing:0.12em; text-transform:uppercase; margin-bottom:18px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{content:''; width:26px; height:1px; background:var(--cyan); flex-shrink:0;}
+  .hero h1{
+    font-size:clamp(38px,5vw,58px); line-height:1.05; font-weight:700; color:var(--white);
+    margin-bottom:22px;
+  }
+  .hero h1 span{color:var(--steel-light);}
+  .hero p{
+    font-size:17px; color:var(--silver); max-width:480px; margin-bottom:34px;
+  }
+  .hero-ctas{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:40px;}
+  .btn-primary{
+    background:var(--amber); color:#1a1305; padding:14px 26px; border-radius:3px;
+    font-weight:600; font-size:14px; text-transform:uppercase; letter-spacing:0.04em;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .btn-primary:hover{transform:translateY(-1px); box-shadow:0 6px 18px rgba(232,163,61,0.3);}
+  .btn-secondary{
+    border:1px solid var(--line); color:var(--white); padding:14px 26px; border-radius:3px;
+    font-weight:500; font-size:14px; text-transform:uppercase; letter-spacing:0.04em;
+    transition:border-color .15s, color .15s;
+  }
+  .btn-secondary:hover{border-color:var(--steel-light); color:var(--steel-light);}
+  .hero-stats{display:flex; gap:36px;}
+  .hero-stats div{border-left:2px solid var(--steel); padding-left:14px;}
+  .hero-stats strong{display:block; font-family:'Oswald',sans-serif; font-size:26px; color:var(--white);}
+  .hero-stats span{font-size:12px; color:var(--silver-dim); text-transform:uppercase; letter-spacing:0.06em;}
+
+  .cycle-wrap{position:relative;}
+  .cycle-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:22px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .cycle-card .label-row{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--silver-dim); text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .live-dot{width:7px;height:7px;background:var(--cyan);border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.3;}}
+  .refrig-path{stroke:var(--silver-dim); stroke-width:2; fill:none;}
+  .refrig-node-label{font-family:'IBM Plex Mono',monospace; font-size:9.5px; fill:var(--silver); text-transform:uppercase; letter-spacing:0.01em;}
+  .refrig-node-box{fill:var(--charcoal-2); stroke:var(--line); stroke-width:1;}
+  .refrig-flow{fill:var(--cyan);}
+
+  .section{padding:88px 0;}
+  .section-head{max-width:640px; margin-bottom:54px;}
+  .section-head .eyebrow{margin-bottom:14px;}
+  .section-head h2{font-size:clamp(28px,3.4vw,38px); color:var(--white); font-weight:600;}
+  .section-head p{color:var(--silver); margin-top:14px; font-size:15.5px;}
+
+  .services-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line);
+    border:1px solid var(--line); border-radius:6px; overflow:hidden;
+  }
+  .service-card{background:var(--charcoal-2); padding:32px 26px; transition:background .2s;}
+  .service-card:hover{background:var(--panel);}
+  .service-card .icon{width:38px; height:38px; margin-bottom:20px; color:var(--cyan);}
+  .service-card h3{font-size:16px; color:var(--white); font-weight:600; margin-bottom:10px; text-transform:none; letter-spacing:0;}
+  .service-card p{font-size:13.5px; color:var(--silver-dim); line-height:1.6;}
+  .service-card .tag{
+    display:inline-block; margin-top:16px; font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+    color:var(--steel-light); border:1px solid var(--steel); padding:3px 8px; border-radius:2px; letter-spacing:0.05em;
+  }
+
+  .brands-row{display:flex; flex-wrap:wrap; gap:14px; margin-top:10px;}
+  .brand-chip{
+    font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--silver);
+    border:1px solid var(--line); padding:10px 18px; border-radius:3px; background:var(--charcoal-2);
+  }
+
+  .certs-section{background:var(--charcoal-2); border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .certs-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:36px;}
+  .cert-item{border-left:2px solid var(--amber); padding-left:18px;}
+  .cert-item h3{font-size:15px; color:var(--white); text-transform:none; letter-spacing:0; margin-bottom:8px; font-weight:600;}
+  .cert-item p{font-size:13.5px; color:var(--silver-dim);}
+
+  .area-grid{display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;}
+  .radar{
+    position:relative; width:100%; aspect-ratio:1; max-width:380px; border-radius:50%;
+    background:radial-gradient(circle, rgba(111,214,209,0.06) 0%, transparent 70%);
+    border:1px solid var(--line);
+  }
+  .radar .ring{position:absolute; border:1px solid var(--line); border-radius:50%;}
+  .radar .r1{inset:15%;} .radar .r2{inset:35%;} .radar .r3{inset:55%;}
+  .radar .center{
+    position:absolute; top:50%; left:50%; width:10px; height:10px; background:var(--amber);
+    border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 12px var(--amber);
+  }
+  .radar .sweep{
+    position:absolute; inset:0; border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(111,214,209,0.35), transparent 40%);
+    animation:spin 4s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .area-list{list-style:none;}
+  .area-list li{
+    display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line);
+    font-size:14.5px; color:var(--silver); gap:16px;
+  }
+  .area-list li span:last-child{font-family:'IBM Plex Mono',monospace; color:var(--cyan); font-size:12.5px; flex-shrink:0;}
+
+  .reviews-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:24px;}
+  .review-card{background:var(--charcoal-2); border:1px solid var(--line); border-radius:6px; padding:28px;}
+  .review-card .stars{color:var(--amber); font-size:13px; margin-bottom:14px; letter-spacing:2px;}
+  .review-card p{font-size:14px; color:var(--silver); line-height:1.7; margin-bottom:18px;}
+  .review-card .who{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--silver-dim);}
+
+  .contact-section{background:var(--panel); border-top:1px solid var(--line);}
+  .contact-grid{display:grid; grid-template-columns:1fr 1fr; gap:60px;}
+  .contact-info h2{font-size:clamp(26px,3vw,34px); margin-bottom:16px;}
+  .contact-info p{color:var(--silver); margin-bottom:30px; max-width:420px;}
+  .contact-line{display:flex; gap:14px; align-items:center; margin-bottom:16px; font-size:14.5px; color:var(--white);}
+  .contact-line .k{font-family:'IBM Plex Mono',monospace; color:var(--silver-dim); font-size:11px; text-transform:uppercase; width:90px; flex-shrink:0;}
+  form{display:flex; flex-direction:column; gap:14px;}
+  form input, form select, form textarea{
+    background:var(--charcoal-2); border:1px solid var(--line); border-radius:3px; color:var(--white);
+    padding:13px 14px; font-family:'Inter',sans-serif; font-size:14px;
+  }
+  form input:focus, form select:focus, form textarea:focus{outline:2px solid var(--cyan); outline-offset:1px; border-color:var(--cyan);}
+  form label{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--silver-dim); text-transform:uppercase; margin-bottom:-6px; letter-spacing:0.05em;}
+  form textarea{resize:vertical; min-height:90px;}
+  form button{
+    background:var(--amber); color:#1a1305; border:none; padding:15px; border-radius:3px;
+    font-family:'Oswald',sans-serif; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;
+    font-size:14px; cursor:pointer; margin-top:6px; transition:transform .15s;
+  }
+  form button:hover{transform:translateY(-1px);}
+
+  footer{
+    border-top:1px solid var(--line); padding:26px 0; text-align:center;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--silver-dim);
+  }
+
+  @media(max-width:920px){
+    .hero-grid, .area-grid, .contact-grid{grid-template-columns:1fr;}
+    .services-grid{grid-template-columns:repeat(2,1fr);}
+    .certs-grid{grid-template-columns:1fr;}
+    .reviews-grid{grid-template-columns:1fr;}
+    nav ul{display:none;}
+    .hero{padding:60px 0 50px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>COLDLINE
+        <small data-i18n="brand_tag">Refrigeration &amp; Electromechanical Svc.</small>
+      </div>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#services" data-i18n="nav_services">Services</a></li>
+        <li><a href="#certs" data-i18n="nav_certs">Certifications</a></li>
+        <li><a href="#area" data-i18n="nav_area">Service Area</a></li>
+        <li><a href="#reviews" data-i18n="nav_reviews">Reviews</a></li>
+        <li><a href="#contact" data-i18n="nav_contact">Contact</a></li>
+      </ul>
+    </nav>
+    <div class="nav-right">
+      <div class="lang-toggle" role="group" aria-label="Language selector">
+        <button type="button" id="btn-en" onclick="setLang('en')">EN</button>
+        <button type="button" id="btn-es" onclick="setLang('es')">ES</button>
+      </div>
+      <a class="call-btn" href="tel:+15550102837">📞 (555) 010-2837</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow" data-i18n="hero_eyebrow">EPA 608 Certified · Licensed Technician</div>
+      <h1 data-i18n-html="hero_h1">Your cold chain<br>doesn't sleep.<br><span>Neither do we.</span></h1>
+      <p data-i18n="hero_p">Commercial refrigeration, HVAC and electromechanical repair for restaurants, markets, warehouses and homes. Diagnosed right the first time — no guesswork, no repeat visits.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="#contact" data-i18n="hero_cta1">Request Service</a>
+        <a class="btn-secondary" href="tel:+15550102837" data-i18n="hero_cta2">Call Now</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>12+</strong><span data-i18n="stat1">Years in the field</span></div>
+        <div><strong>24/7</strong><span data-i18n="stat2">Emergency calls</span></div>
+        <div><strong>30mi</strong><span data-i18n="stat3">Service radius</span></div>
+      </div>
+    </div>
+
+    <div class="cycle-wrap">
+      <div class="cycle-card">
+        <div class="label-row"><span><span class="live-dot"></span><span data-i18n="cycle_live">REFRIGERATION CYCLE — LIVE</span></span><span>R-134a</span></div>
+        <svg viewBox="0 0 360 300" width="100%" role="img" aria-label="Diagram of the refrigeration cycle showing compressor, condenser, expansion valve and evaporator connected in a loop, with animated flow indicators.">
+          <defs>
+            <path id="loopPath" class="refrig-path" d="M70,60 H270 V110 Q270,130 250,130 H130 Q90,130 90,170 V220 Q90,240 110,240 H290 M70,60 Q50,60 50,90 V220 Q50,250 70,250 H70" />
+          </defs>
+          <path class="refrig-path" d="M70,60 H270" />
+          <path class="refrig-path" d="M270,60 V130" />
+          <path class="refrig-path" d="M270,130 H120" />
+          <path class="refrig-path" d="M120,130 Q90,130 90,160 V190" />
+          <path class="refrig-path" d="M90,190 Q90,240 130,240" />
+          <path class="refrig-path" d="M130,240 H300" />
+          <path class="refrig-path" d="M300,240 Q330,240 330,210 V90 Q330,60 300,60" />
+          <path class="refrig-path" d="M300,60 H70" />
+          <path class="refrig-path" d="M70,60 Q45,60 45,90 V220 Q45,250 75,250" />
+          <path class="refrig-path" d="M75,250 H90"/>
+
+          <rect class="refrig-node-box" x="35" y="35" width="90" height="34" rx="3"/>
+          <text class="refrig-node-label" x="80" y="56" text-anchor="middle" data-i18n="node_condenser">Condenser</text>
+
+          <rect class="refrig-node-box" x="255" y="20" width="80" height="34" rx="3"/>
+          <text class="refrig-node-label" x="295" y="41" text-anchor="middle" data-i18n="node_compressor">Compressor</text>
+
+          <rect class="refrig-node-box" x="60" y="225" width="90" height="34" rx="3"/>
+          <text class="refrig-node-label" x="105" y="246" text-anchor="middle" data-i18n="node_evaporator">Evaporator</text>
+
+          <rect class="refrig-node-box" x="130" y="113" width="140" height="34" rx="3"/>
+          <text class="refrig-node-label" x="200" y="134" text-anchor="middle" data-i18n="node_expansion">Expansion Valve</text>
+
+          <circle class="refrig-flow" r="4">
+            <animateMotion dur="4s" repeatCount="indefinite">
+              <mpath href="#loopPath"/>
+            </animateMotion>
+          </circle>
+          <circle class="refrig-flow" r="4" opacity="0.6">
+            <animateMotion dur="4s" begin="1.3s" repeatCount="indefinite">
+              <mpath href="#loopPath"/>
+            </animateMotion>
+          </circle>
+          <circle class="refrig-flow" r="4" opacity="0.35">
+            <animateMotion dur="4s" begin="2.6s" repeatCount="indefinite">
+              <mpath href="#loopPath"/>
+            </animateMotion>
+          </circle>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="services">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow" data-i18n="services_eyebrow">What I fix</div>
+      <h2 data-i18n="services_h2">Full-spectrum refrigeration &amp; electromechanical repair</h2>
+      <p data-i18n="services_p">From a walk-in cooler that won't hold temp to a control panel that needs rewiring — one technician, one visit, done right.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M4.5 6l15 12M19.5 6l-15 12M2 12h20"/></svg>
+        <h3 data-i18n="svc1_h">Commercial Refrigeration</h3>
+        <p data-i18n="svc1_p">Walk-ins, reach-ins, display cases and ice machines for restaurants, markets and food service.</p>
+        <span class="tag" data-i18n="svc1_tag">EMERGENCY 24/7</span>
+      </div>
+      <div class="service-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 14h16M4 10h16M8 4v16M16 4v16"/></svg>
+        <h3 data-i18n="svc2_h">Residential AC &amp; Refrigeration</h3>
+        <p data-i18n="svc2_p">Home AC systems, fridges and freezers — diagnostics, repair and seasonal tune-ups.</p>
+        <span class="tag" data-i18n="svc2_tag">SAME-DAY QUOTE</span>
+      </div>
+      <div class="service-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+        <h3 data-i18n="svc3_h">Electromechanical Repair</h3>
+        <p data-i18n="svc3_p">Motors, compressors, control boards and wiring — rebuild or replace, with parts sourced fast.</p>
+        <span class="tag" data-i18n="svc3_tag">DIAGNOSTIC INCLUDED</span>
+      </div>
+      <div class="service-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="5"/></svg>
+        <h3 data-i18n="svc4_h">Preventive Maintenance</h3>
+        <p data-i18n="svc4_p">Scheduled inspection contracts that catch failures before they shut down your equipment.</p>
+        <span class="tag" data-i18n="svc4_tag">CONTRACT PRICING</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section certs-section" id="certs">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow" data-i18n="certs_eyebrow">Credentials</div>
+      <h2 data-i18n="certs_h2">Licensed. Certified. Insured.</h2>
+    </div>
+    <div class="certs-grid">
+      <div class="cert-item">
+        <h3 data-i18n="cert1_h">EPA Section 608 Certified</h3>
+        <p data-i18n="cert1_p">Authorized for refrigerant handling, recovery and disposal per federal regulation.</p>
+      </div>
+      <div class="cert-item">
+        <h3 data-i18n="cert2_h">State-Licensed Technician</h3>
+        <p data-i18n="cert2_p">Electromechanical and HVAC/R licensing current and verifiable on request.</p>
+      </div>
+      <div class="cert-item">
+        <h3 data-i18n="cert3_h">Fully Insured</h3>
+        <p data-i18n="cert3_p">General liability coverage for residential and commercial job sites.</p>
+      </div>
+    </div>
+    <div style="margin-top:50px;">
+      <div class="eyebrow" data-i18n="brands_eyebrow">Equipment brands serviced</div>
+      <div class="brands-row">
+        <span class="brand-chip">Copeland</span>
+        <span class="brand-chip">Danfoss</span>
+        <span class="brand-chip">Carrier</span>
+        <span class="brand-chip">True Mfg</span>
+        <span class="brand-chip">Hussmann</span>
+        <span class="brand-chip">Bohn</span>
+        <span class="brand-chip">Heatcraft</span>
+        <span class="brand-chip" data-i18n="brands_more">+ most major brands</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="area">
+  <div class="wrap area-grid">
+    <div>
+      <div class="radar">
+        <div class="sweep"></div>
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="center"></div>
+      </div>
+    </div>
+    <div>
+      <div class="eyebrow" data-i18n="area_eyebrow">Coverage</div>
+      <h2 style="font-size:clamp(26px,3vw,34px); margin-bottom:18px;" data-i18n="area_h2">Serving your city and a 30-mile radius</h2>
+      <p style="color:var(--silver); margin-bottom:30px;" data-i18n="area_p">Based centrally, dispatched fast — most calls answered within the hour during business hours.</p>
+      <ul class="area-list">
+        <li><span data-i18n="area_li1">Downtown &amp; surrounding neighborhoods</span><span>0–10 MI</span></li>
+        <li><span data-i18n="area_li2">Commercial / industrial districts</span><span>10–20 MI</span></li>
+        <li><span data-i18n="area_li3">Outlying towns (by appointment)</span><span>20–30 MI</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="reviews">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow" data-i18n="reviews_eyebrow">Track record</div>
+      <h2 data-i18n="reviews_h2">What clients say</h2>
+    </div>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="stars">★★★★★</div>
+        <p data-i18n="review1_p">"Walk-in cooler went down on a Friday night — had it running again before we opened Saturday. Straight to the point about what was wrong."</p>
+        <div class="who" data-i18n="review1_who">— Restaurant Owner</div>
+      </div>
+      <div class="review-card">
+        <div class="stars">★★★★★</div>
+        <p data-i18n="review2_p">"Diagnosed a compressor issue two other techs missed. Explained everything in plain terms before doing any work."</p>
+        <div class="who" data-i18n="review2_who">— Property Manager</div>
+      </div>
+      <div class="review-card">
+        <div class="stars">★★★★★</div>
+        <p data-i18n="review3_p">"Now on a quarterly maintenance plan for all our display cases. Fewer breakdowns, predictable cost."</p>
+        <div class="who" data-i18n="review3_who">— Market Owner</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section contact-section" id="contact">
+  <div class="wrap contact-grid">
+    <div class="contact-info">
+      <h2 data-i18n="contact_h2">Get it fixed.</h2>
+      <p data-i18n="contact_p">Tell me what's happening and I'll get back to you with a diagnosis window and a straight quote — usually within the hour.</p>
+      <div class="contact-line"><span class="k" data-i18n="contact_phone">Phone</span><a href="tel:+15550102837">(555) 010-2837</a></div>
+      <div class="contact-line"><span class="k" data-i18n="contact_whatsapp">WhatsApp</span><a href="#">(555) 010-2837</a></div>
+      <div class="contact-line"><span class="k" data-i18n="contact_email">Email</span><a href="mailto:service@coldline.example">service@coldline.example</a></div>
+      <div class="contact-line"><span class="k" data-i18n="contact_hours">Hours</span><span data-i18n="contact_hours_val">Mon–Sat 7AM–8PM · 24/7 Emergency</span></div>
+    </div>
+    <form onsubmit="event.preventDefault(); this.querySelector('button').textContent=T[currentLang].form_sent;">
+      <label for="name" data-i18n="form_name">Name</label>
+      <input id="name" type="text" data-i18n-placeholder="form_name_ph" placeholder="Your name" required>
+      <label for="phone" data-i18n="form_phone">Phone</label>
+      <input id="phone" type="tel" placeholder="(___) ___-____" required>
+      <label for="issue" data-i18n="form_issue">Issue type</label>
+      <select id="issue">
+        <option data-i18n="opt1">Commercial refrigeration</option>
+        <option data-i18n="opt2">Residential AC / refrigeration</option>
+        <option data-i18n="opt3">Electromechanical / motor repair</option>
+        <option data-i18n="opt4">Preventive maintenance</option>
+        <option data-i18n="opt5">Other</option>
+      </select>
+      <label for="msg" data-i18n="form_msg">Describe the problem</label>
+      <textarea id="msg" data-i18n-placeholder="form_msg_ph" placeholder="What's it doing (or not doing)?"></textarea>
+      <button type="submit" data-i18n="form_submit">Send Request</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" data-i18n="footer_text">© 2026 COLDLINE REFRIGERATION &amp; ELECTROMECHANICAL SERVICES — LICENSE #XXXXXX</div>
+</footer>
+
+<script>
+const T = {
+  en: {
+    brand_tag: "Refrigeration & Electromechanical Svc.",
+    nav_services: "Services", nav_certs: "Certifications", nav_area: "Service Area", nav_reviews: "Reviews", nav_contact: "Contact",
+    hero_eyebrow: "EPA 608 Certified · Licensed Technician",
+    hero_h1: "Your cold chain<br>doesn't sleep.<br><span>Neither do we.</span>",
+    hero_p: "Commercial refrigeration, HVAC and electromechanical repair for restaurants, markets, warehouses and homes. Diagnosed right the first time — no guesswork, no repeat visits.",
+    hero_cta1: "Request Service", hero_cta2: "Call Now",
+    stat1: "Years in the field", stat2: "Emergency calls", stat3: "Service radius",
+    cycle_live: "REFRIGERATION CYCLE — LIVE",
+    node_condenser: "Condenser", node_compressor: "Compressor", node_evaporator: "Evaporator", node_expansion: "Expansion Valve",
+    services_eyebrow: "What I fix",
+    services_h2: "Full-spectrum refrigeration &amp; electromechanical repair",
+    services_p: "From a walk-in cooler that won't hold temp to a control panel that needs rewiring — one technician, one visit, done right.",
+    svc1_h: "Commercial Refrigeration", svc1_p: "Walk-ins, reach-ins, display cases and ice machines for restaurants, markets and food service.", svc1_tag: "EMERGENCY 24/7",
+    svc2_h: "Residential AC &amp; Refrigeration", svc2_p: "Home AC systems, fridges and freezers — diagnostics, repair and seasonal tune-ups.", svc2_tag: "SAME-DAY QUOTE",
+    svc3_h: "Electromechanical Repair", svc3_p: "Motors, compressors, control boards and wiring — rebuild or replace, with parts sourced fast.", svc3_tag: "DIAGNOSTIC INCLUDED",
+    svc4_h: "Preventive Maintenance", svc4_p: "Scheduled inspection contracts that catch failures before they shut down your equipment.", svc4_tag: "CONTRACT PRICING",
+    certs_eyebrow: "Credentials", certs_h2: "Licensed. Certified. Insured.",
+    cert1_h: "EPA Section 608 Certified", cert1_p: "Authorized for refrigerant handling, recovery and disposal per federal regulation.",
+    cert2_h: "State-Licensed Technician", cert2_p: "Electromechanical and HVAC/R licensing current and verifiable on request.",
+    cert3_h: "Fully Insured", cert3_p: "General liability coverage for residential and commercial job sites.",
+    brands_eyebrow: "Equipment brands serviced", brands_more: "+ most major brands",
+    area_eyebrow: "Coverage", area_h2: "Serving your city and a 30-mile radius",
+    area_p: "Based centrally, dispatched fast — most calls answered within the hour during business hours.",
+    area_li1: "Downtown &amp; surrounding neighborhoods", area_li2: "Commercial / industrial districts", area_li3: "Outlying towns (by appointment)",
+    reviews_eyebrow: "Track record", reviews_h2: "What clients say",
+    review1_p: "\"Walk-in cooler went down on a Friday night — had it running again before we opened Saturday. Straight to the point about what was wrong.\"", review1_who: "— Restaurant Owner",
+    review2_p: "\"Diagnosed a compressor issue two other techs missed. Explained everything in plain terms before doing any work.\"", review2_who: "— Property Manager",
+    review3_p: "\"Now on a quarterly maintenance plan for all our display cases. Fewer breakdowns, predictable cost.\"", review3_who: "— Market Owner",
+    contact_h2: "Get it fixed.",
+    contact_p: "Tell me what's happening and I'll get back to you with a diagnosis window and a straight quote — usually within the hour.",
+    contact_phone: "Phone", contact_whatsapp: "WhatsApp", contact_email: "Email", contact_hours: "Hours",
+    contact_hours_val: "Mon–Sat 7AM–8PM · 24/7 Emergency",
+    form_name: "Name", form_name_ph: "Your name", form_phone: "Phone", form_issue: "Issue type",
+    opt1: "Commercial refrigeration", opt2: "Residential AC / refrigeration", opt3: "Electromechanical / motor repair", opt4: "Preventive maintenance", opt5: "Other",
+    form_msg: "Describe the problem", form_msg_ph: "What's it doing (or not doing)?",
+    form_submit: "Send Request", form_sent: "Request Sent ✓",
+    footer_text: "© 2026 COLDLINE REFRIGERATION &amp; ELECTROMECHANICAL SERVICES — LICENSE #XXXXXX"
+  },
+  es: {
+    brand_tag: "Refrigeración y Electromecánica",
+    nav_services: "Servicios", nav_certs: "Certificaciones", nav_area: "Área de Servicio", nav_reviews: "Reseñas", nav_contact: "Contacto",
+    hero_eyebrow: "Certificado EPA 608 · Técnico con Licencia",
+    hero_h1: "Su cadena de frío<br>no descansa.<br><span>Nosotros tampoco.</span>",
+    hero_p: "Reparación de refrigeración comercial, aire acondicionado y electromecánica para restaurantes, mercados, almacenes y hogares. Diagnóstico correcto desde la primera vez — sin adivinar, sin visitas repetidas.",
+    hero_cta1: "Solicitar Servicio", hero_cta2: "Llamar Ahora",
+    stat1: "Años de experiencia", stat2: "Llamadas de emergencia", stat3: "Radio de servicio",
+    cycle_live: "CICLO DE REFRIGERACIÓN — EN VIVO",
+    node_condenser: "Condensador", node_compressor: "Compresor", node_evaporator: "Evaporador", node_expansion: "Válvula de Expansión",
+    services_eyebrow: "Lo que reparo",
+    services_h2: "Reparación integral de refrigeración y electromecánica",
+    services_p: "Desde un walk-in que no mantiene la temperatura hasta un panel de control que necesita recableado — un técnico, una visita, bien hecho.",
+    svc1_h: "Refrigeración Comercial", svc1_p: "Walk-ins, neveras, vitrinas y máquinas de hielo para restaurantes, mercados y servicio de alimentos.", svc1_tag: "EMERGENCIA 24/7",
+    svc2_h: "Aire Acondicionado y Refrigeración Residencial", svc2_p: "Sistemas de A/C, neveras y congeladores del hogar — diagnóstico, reparación y mantenimiento estacional.", svc2_tag: "COTIZACIÓN EL MISMO DÍA",
+    svc3_h: "Reparación Electromecánica", svc3_p: "Motores, compresores, tarjetas de control y cableado — reconstrucción o reemplazo, con repuestos rápidos.", svc3_tag: "DIAGNÓSTICO INCLUIDO",
+    svc4_h: "Mantenimiento Preventivo", svc4_p: "Contratos de inspección programada que detectan fallas antes de que detengan su equipo.", svc4_tag: "PRECIO POR CONTRATO",
+    certs_eyebrow: "Credenciales", certs_h2: "Con licencia. Certificado. Asegurado.",
+    cert1_h: "Certificación EPA Sección 608", cert1_p: "Autorizado para el manejo, recuperación y disposición de refrigerantes según regulación federal.",
+    cert2_h: "Técnico con Licencia Estatal", cert2_p: "Licencia de electromecánica y HVAC/R vigente y verificable a solicitud.",
+    cert3_h: "Totalmente Asegurado", cert3_p: "Cobertura de responsabilidad civil general para trabajos residenciales y comerciales.",
+    brands_eyebrow: "Marcas de equipos que reparo", brands_more: "+ la mayoría de las marcas principales",
+    area_eyebrow: "Cobertura", area_h2: "Sirviendo su ciudad y un radio de 30 millas",
+    area_p: "Con base central y despacho rápido — la mayoría de las llamadas se responden en menos de una hora en horario laboral.",
+    area_li1: "Centro y vecindarios cercanos", area_li2: "Distritos comerciales e industriales", area_li3: "Pueblos cercanos (con cita previa)",
+    reviews_eyebrow: "Historial", reviews_h2: "Lo que dicen los clientes",
+    review1_p: "\"El walk-in se dañó un viernes por la noche — lo tenía funcionando antes de abrir el sábado. Directo y claro sobre el problema.\"", review1_who: "— Dueño de Restaurante",
+    review2_p: "\"Diagnosticó un problema de compresor que otros dos técnicos no detectaron. Explicó todo en términos claros antes de trabajar.\"", review2_who: "— Administrador de Propiedad",
+    review3_p: "\"Ahora tenemos un plan de mantenimiento trimestral para todas nuestras vitrinas. Menos fallas, costo predecible.\"", review3_who: "— Dueño de Mercado",
+    contact_h2: "Resuélvalo ahora.",
+    contact_p: "Cuénteme qué está pasando y le responderé con una ventana de diagnóstico y una cotización clara — usualmente en menos de una hora.",
+    contact_phone: "Teléfono", contact_whatsapp: "WhatsApp", contact_email: "Correo", contact_hours: "Horario",
+    contact_hours_val: "Lun–Sáb 7AM–8PM · Emergencia 24/7",
+    form_name: "Nombre", form_name_ph: "Su nombre", form_phone: "Teléfono", form_issue: "Tipo de problema",
+    opt1: "Refrigeración comercial", opt2: "A/C o refrigeración residencial", opt3: "Reparación electromecánica / motor", opt4: "Mantenimiento preventivo", opt5: "Otro",
+    form_msg: "Describa el problema", form_msg_ph: "¿Qué está haciendo (o dejando de hacer)?",
+    form_submit: "Enviar Solicitud", form_sent: "Solicitud Enviada ✓",
+    footer_text: "© 2026 COLDLINE SERVICIOS DE REFRIGERACIÓN Y ELECTROMECÁNICA — LICENCIA #XXXXXX"
+  }
+};
+
+let currentLang = 'en';
+
+function setLang(lang){
+  currentLang = lang;
+  const dict = T[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if(dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if(dict[key] !== undefined) el.setAttribute('placeholder', dict[key]);
+  });
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+  document.documentElement.lang = lang;
+}
+
+setLang(navigator.language && navigator.language.toLowerCase().startsWith('es') ? 'es' : 'en');
+</script>
+
+</body>
+</html>

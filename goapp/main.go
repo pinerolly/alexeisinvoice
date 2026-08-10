@@ -252,6 +252,114 @@ type EditPageView struct {
 	TechnicianSignaturePreview string
 }
 
+type PublicPageView struct {
+	Title          string
+	RequestSent    bool
+	RequestError   string
+	RequestName    string
+	RequestPhone   string
+	RequestEmail   string
+	RequestService string
+	RequestMessage string
+}
+
+func publicHandler(w http.ResponseWriter, r *http.Request) {
+	view := PublicPageView{
+		Title:          "Electroclima Pro Services, LLC",
+		RequestSent:    r.URL.Query().Get("request") == "1",
+		RequestError:   r.URL.Query().Get("requesterror"),
+		RequestName:    r.URL.Query().Get("name"),
+		RequestPhone:   r.URL.Query().Get("phone"),
+		RequestEmail:   r.URL.Query().Get("email"),
+		RequestService: r.URL.Query().Get("service"),
+		RequestMessage: r.URL.Query().Get("message"),
+	}
+	if err := mustTemplate("public_home.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func serviceRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/?requesterror="+url.QueryEscape("Could not submit request. Please try again.")+"#contact", http.StatusSeeOther)
+		return
+	}
+	// Honeypot: bots often fill hidden fields; humans do not.
+	if strings.TrimSpace(r.FormValue("website")) != "" {
+		http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	phone := strings.TrimSpace(r.FormValue("phone"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	serviceType := strings.TrimSpace(r.FormValue("service_type"))
+	message := strings.TrimSpace(r.FormValue("message"))
+
+	q := url.Values{}
+	q.Set("name", name)
+	q.Set("phone", phone)
+	q.Set("email", email)
+	q.Set("service", serviceType)
+	q.Set("message", message)
+
+	if name == "" {
+		q.Set("requesterror", "Please enter your name.")
+		http.Redirect(w, r, "/?"+q.Encode()+"#contact", http.StatusSeeOther)
+		return
+	}
+	if phone == "" && email == "" {
+		q.Set("requesterror", "Please provide a phone number or email.")
+		http.Redirect(w, r, "/?"+q.Encode()+"#contact", http.StatusSeeOther)
+		return
+	}
+	if len(message) > 3000 {
+		q.Set("requesterror", "Message is too long. Please keep it under 3000 characters.")
+		http.Redirect(w, r, "/?"+q.Encode()+"#contact", http.StatusSeeOther)
+		return
+	}
+
+	if _, err := createServiceRequest(name, phone, email, serviceType, message); err != nil {
+		q.Set("requesterror", "Could not save your request right now. Please try again.")
+		http.Redirect(w, r, "/?"+q.Encode()+"#contact", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+}
+
+type ServiceRequestsPageView struct {
+	Title       string
+	Requests    []ServiceRequest
+	CSRFToken   string
+	IsAdmin     bool
+	Username    string
+	DisplayName string
+}
+
+func serviceRequestsHandler(w http.ResponseWriter, r *http.Request) {
+	reqs, err := listServiceRequests(200)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	view := ServiceRequestsPageView{
+		Title:       "Service Requests",
+		Requests:    reqs,
+		CSRFToken:   currentCSRFToken(r),
+		IsAdmin:     isAdmin(r),
+		Username:    currentUsername(r),
+		DisplayName: currentDisplayName(r),
+	}
+	if err := mustTemplate("service_requests.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	technician, _ := getUserByUsername(currentUsername(r))
 	mu.Lock()
@@ -980,6 +1088,99 @@ func invoicePhotosZipHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(zipBytes)
 }
 
+func selectedInvoicePhotos(r *http.Request, invoiceID int64) ([]InvoicePhoto, error) {
+	rawIDs := r.Form["photo_ids"]
+	if len(rawIDs) == 0 {
+		return nil, nil
+	}
+	seen := map[int64]bool{}
+	photos := make([]InvoicePhoto, 0, len(rawIDs))
+	for _, raw := range rawIDs {
+		photoID, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+		if err != nil || photoID <= 0 || seen[photoID] {
+			continue
+		}
+		seen[photoID] = true
+		photo, err := getInvoicePhoto(photoID)
+		if err != nil || photo.InvoiceID != invoiceID {
+			continue
+		}
+		photos = append(photos, photo)
+	}
+	return photos, nil
+}
+
+func invoicePhotosSelectedZipHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, _, err := getInvoiceWithJobs(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photos, err := selectedInvoicePhotos(r, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(photos) == 0 {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape("Please select at least one photo to download.")), http.StatusSeeOther)
+		return
+	}
+	zipBytes, _, err := buildInvoiceEvidenceZip(id, photos)
+	if err != nil {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape("Could not build selected photos ZIP.")), http.StatusSeeOther)
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fmt.Sprintf("invoice_%d_selected_photos.zip", id)))
+	w.Write(zipBytes)
+}
+
+func invoicePhotosDeleteSelectedHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, _, err := getInvoiceWithJobs(id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	photos, err := selectedInvoicePhotos(r, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(photos) == 0 {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape("Please select at least one photo to delete.")), http.StatusSeeOther)
+		return
+	}
+
+	deleted := 0
+	failures := 0
+	for _, photo := range photos {
+		_ = deleteInvoicePhotoObject(photo.ObjectKey)
+		if err := deleteInvoicePhoto(photo.ID); err != nil {
+			failures++
+			continue
+		}
+		deleted++
+	}
+
+	if deleted == 0 {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape("Could not delete selected photos.")), http.StatusSeeOther)
+		return
+	}
+	if failures > 0 {
+		http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view?photoerror=%s", id, url.QueryEscape(fmt.Sprintf("Deleted %d photos; %d could not be deleted.", deleted, failures))), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/invoices/%d/view", id), http.StatusSeeOther)
+}
+
 func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -1001,7 +1202,7 @@ func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/app", http.StatusSeeOther)
 }
 
 func main() {
@@ -1034,11 +1235,14 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", publicHandler)
+	mux.HandleFunc("POST /service-request", serviceRequestHandler)
 	mux.HandleFunc("GET /login", loginHandler)
 	mux.HandleFunc("POST /login", loginHandler)
 	mux.HandleFunc("POST /logout", logoutHandler)
 
-	mux.HandleFunc("GET /{$}", requireAuth(requireSignature(indexHandler)))
+	mux.HandleFunc("GET /app", requireAuth(requireSignature(indexHandler)))
+	mux.HandleFunc("GET /admin/service-requests", requireAuth(serviceRequestsHandler))
 	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
 	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))
@@ -1050,6 +1254,8 @@ func main() {
 	mux.HandleFunc("GET /invoices/{id}/photos/{photoID}", requireAuth(requireSignature(invoicePhotoViewHandler)))
 	mux.HandleFunc("POST /invoices/{id}/photos/{photoID}/delete", requireCSRF(requireSignature(invoicePhotoDeleteHandler)))
 	mux.HandleFunc("GET /invoices/{id}/photos.zip", requireAuth(requireSignature(invoicePhotosZipHandler)))
+	mux.HandleFunc("POST /invoices/{id}/photos/download-selected", requireCSRF(requireSignature(invoicePhotosSelectedZipHandler)))
+	mux.HandleFunc("POST /invoices/{id}/photos/delete-selected", requireCSRF(requireSignature(invoicePhotosDeleteSelectedHandler)))
 	mux.HandleFunc("GET /invoices/{id}/edit", requireAuth(requireSignature(invoiceEditHandler)))
 	mux.HandleFunc("POST /invoices/{id}/delete", requireAdmin(requireCSRF(invoiceDeleteHandler)))
 	mux.HandleFunc("POST /invoices/{id}/paid", requireAdmin(requireCSRF(invoicePaidHandler)))

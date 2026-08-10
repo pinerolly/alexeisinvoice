@@ -77,6 +77,17 @@ CREATE TABLE IF NOT EXISTS plaid_items (
 	institution_name TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS service_requests (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	phone TEXT NOT NULL DEFAULT '',
+	email TEXT NOT NULL DEFAULT '',
+	service_type TEXT NOT NULL DEFAULT '',
+	message TEXT NOT NULL DEFAULT '',
+	status TEXT NOT NULL DEFAULT 'new',
+	created_at TEXT NOT NULL
+);
 `
 
 func initDB() error {
@@ -237,6 +248,60 @@ type Client struct {
 	Name  string
 	Phone string
 	Email string
+}
+
+type ServiceRequest struct {
+	ID          int64
+	Name        string
+	Phone       string
+	Email       string
+	ServiceType string
+	Message     string
+	Status      string
+	CreatedAt   string
+}
+
+func createServiceRequest(name, phone, email, serviceType, message string) (int64, error) {
+	res, err := db.Exec(
+		`INSERT INTO service_requests (name, phone, email, service_type, message, status, created_at) VALUES (?, ?, ?, ?, ?, 'new', ?)`,
+		strings.TrimSpace(name),
+		normalizePhone(phone),
+		normalizeEmail(email),
+		strings.TrimSpace(serviceType),
+		strings.TrimSpace(message),
+		time.Now().UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func listServiceRequests(limit int) ([]ServiceRequest, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := db.Query(
+		`SELECT id, name, phone, email, service_type, message, status, created_at
+		 FROM service_requests
+		 ORDER BY id DESC
+		 LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ServiceRequest
+	for rows.Next() {
+		var r ServiceRequest
+		if err := rows.Scan(&r.ID, &r.Name, &r.Phone, &r.Email, &r.ServiceType, &r.Message, &r.Status, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // findOrCreateClient matches an existing client by phone, then email, then

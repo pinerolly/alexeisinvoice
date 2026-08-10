@@ -306,7 +306,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	next := r.FormValue("next")
 	if next == "" || next == "/login" {
-		next = "/"
+		next = "/app"
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -320,7 +320,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		deleteSession(token)
 	}
 	clearSessionCookie(w, r)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // isAdmin reports whether the current request's session belongs to an admin.
