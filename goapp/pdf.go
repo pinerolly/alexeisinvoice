@@ -39,7 +39,7 @@ func generateInvoicePDF(inv InvoiceData, client Client, title string, _ int64) (
 	pdf.SetFont("Arial", "", 10)
 	pdf.SetTextColor(80, 80, 80)
 	pdf.CellFormat(contentW*0.6, 5, "10530 NW 35 CT, Miami, FL 33147", "", 0, "L", false, 0, "")
-	pdf.CellFormat(contentW, 5, "Tel: 786 389 3330  |  Email: alexoptano@yahoo.com", "", 1, "L", false, 0, "")
+	pdf.CellFormat(contentW, 5, "Tel: 786 389 3330  |  Email: electroclimaprollc@gmail.com", "", 1, "L", false, 0, "")
 
 	pdf.SetDrawColor(pdfPrimaryR, pdfPrimaryG, pdfPrimaryB)
 	pdf.SetLineWidth(0.8)

@@ -360,6 +360,27 @@
         color: #664d03;
         font-weight: 600;
       }
+      .import-banner {
+        grid-column: 1 / -1;
+        background: #e8f6ec;
+        border: 1px solid #b6e2c1;
+        color: #1a5d2d;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        margin-bottom: -4px;
+      }
+      .import-link {
+        display: inline-block;
+        margin-bottom: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .import-link:hover {
+        text-decoration: underline;
+      }
       @media (max-width: 900px) {
         body {
           padding: 12px;
@@ -417,8 +438,14 @@
         Printing will update this record. <a href="/clients">Back to clients</a>
       </div>
       {{end}}
+      {{if .ImportNotice}}
+      <div class="import-banner">{{.ImportNotice}}</div>
+      {{end}}
       <div class="form-panel">
         <h2>Edit Invoice</h2>
+        <a class="import-link" href="/app/import"
+          >Import invoice fields from phone photo</a
+        >
         <form method="POST" action="/update" id="invoiceForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <label for="invDate">Invoice Date</label>
@@ -603,7 +630,7 @@
             <div class="company-details">
               10530 NW 35 CT, Miami, FL 33147<br />
               Tel: 786 389 3330<br />
-              Email: alexoptano@yahoo.com
+              Email: electroclimaprollc@gmail.com
             </div>
           </div>
           <div class="invoice-title">

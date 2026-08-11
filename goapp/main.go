@@ -6,6 +6,8 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"encoding/base64"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -13,6 +15,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,6 +31,7 @@ import (
 
 const maxEvidencePhotoBytes = 10 << 20 // 10 MiB
 const defaultEvidenceZipEmailMaxBytes = 20 << 20
+const maxInvoiceImportImageBytes = 10 << 20 // 10 MiB
 
 func evidenceZipEmailMaxBytes() int {
 	raw := strings.TrimSpace(os.Getenv("EVIDENCE_ZIP_EMAIL_MAX_BYTES"))
@@ -250,6 +254,36 @@ type EditPageView struct {
 	Username                   string
 	DisplayName                string
 	TechnicianSignaturePreview string
+	ImportNotice               string
+}
+
+type InvoiceImportPageView struct {
+	CSRFToken      string
+	IsAdmin        bool
+	Username       string
+	DisplayName    string
+	Error          string
+	Success        bool
+	Model          string
+	ModelConfigured bool
+}
+
+type AIExtractedLineItem struct {
+	Description string  `json:"description"`
+	Price       float64 `json:"price"`
+}
+
+type AIExtractedInvoice struct {
+	InvoiceDate   string                `json:"invoiceDate"`
+	ClientName    string                `json:"clientName"`
+	Phone         string                `json:"phone"`
+	Email         string                `json:"email"`
+	Location      string                `json:"location"`
+	TimeIn        string                `json:"timeIn"`
+	TimeOut       string                `json:"timeOut"`
+	LineItems     []AIExtractedLineItem `json:"lineItems"`
+	PaymentStatus string                `json:"paymentStatus"`
+	AmountPaid    float64               `json:"amountPaid"`
 }
 
 type PublicPageView struct {
@@ -362,6 +396,10 @@ func serviceRequestsHandler(w http.ResponseWriter, r *http.Request) {
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	technician, _ := getUserByUsername(currentUsername(r))
+	importNotice := ""
+	if r.URL.Query().Get("imported") == "1" {
+		importNotice = "Invoice fields were pre-filled from photo. Please review and adjust before printing."
+	}
 	mu.Lock()
 	view := EditPageView{
 		InvoiceData:                data,
@@ -370,11 +408,400 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		Username:                   currentUsername(r),
 		DisplayName:                currentDisplayName(r),
 		TechnicianSignaturePreview: technician.Signature,
+		ImportNotice:               importNotice,
 	}
 	mu.Unlock()
 	if err := mustTemplate("edit.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func aiModelName() string {
+	if model := strings.TrimSpace(os.Getenv("OPENAI_MODEL")); model != "" {
+		return model
+	}
+	return "gpt-4.1-mini"
+}
+
+func invoiceImportPageHandler(w http.ResponseWriter, r *http.Request) {
+	view := InvoiceImportPageView{
+		CSRFToken:       currentCSRFToken(r),
+		IsAdmin:         isAdmin(r),
+		Username:        currentUsername(r),
+		DisplayName:     currentDisplayName(r),
+		Error:           r.URL.Query().Get("error"),
+		Success:         r.URL.Query().Get("success") == "1",
+		Model:           aiModelName(),
+		ModelConfigured: strings.TrimSpace(os.Getenv("OPENAI_API_KEY")) != "",
+	}
+	if err := mustTemplate("invoice_import.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func invoiceImportSubmitHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(maxInvoiceImportImageBytes); err != nil {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not read uploaded image. Please try another file."), http.StatusSeeOther)
+		return
+	}
+
+	photo, _, err := r.FormFile("invoicePhoto")
+	if err != nil {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Please choose an invoice photo first."), http.StatusSeeOther)
+		return
+	}
+	defer photo.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(photo, maxInvoiceImportImageBytes+1))
+	if err != nil {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not read image bytes."), http.StatusSeeOther)
+		return
+	}
+	if len(raw) == 0 {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("The selected file is empty."), http.StatusSeeOther)
+		return
+	}
+	if len(raw) > maxInvoiceImportImageBytes {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Image is too large. Max size is 10MB."), http.StatusSeeOther)
+		return
+	}
+
+	contentType := http.DetectContentType(raw)
+	if !strings.HasPrefix(contentType, "image/") {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Only image files are supported (JPG, PNG, HEIC screenshot exported as image)."), http.StatusSeeOther)
+		return
+	}
+
+	extracted, err := extractInvoiceFromImage(raw, contentType)
+	if err != nil {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	if err := applyExtractedInvoiceToDraft(extracted); err != nil {
+		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not save imported invoice fields."), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/app?imported=1", http.StatusSeeOther)
+}
+
+func extractFirstJSONObject(s string) string {
+	start := strings.IndexByte(s, '{')
+	if start < 0 {
+		return ""
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
+		}
+		if c == '"' {
+			inString = true
+			continue
+		}
+		if c == '{' {
+			depth++
+		} else if c == '}' {
+			depth--
+			if depth == 0 {
+				return s[start : i+1]
+			}
+		}
+	}
+	return ""
+}
+
+func parseLooseFloat(v any) float64 {
+	switch t := v.(type) {
+	case float64:
+		return t
+	case json.Number:
+		f, err := t.Float64()
+		if err == nil {
+			return f
+		}
+	case string:
+		clean := strings.TrimSpace(t)
+		clean = strings.ReplaceAll(clean, "$", "")
+		clean = strings.ReplaceAll(clean, ",", "")
+		f, err := strconv.ParseFloat(clean, 64)
+		if err == nil {
+			return f
+		}
+	}
+	return 0
+}
+
+func normalizeISODate(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return ""
+	}
+	layouts := []string{"2006-01-02", "01/02/2006", "1/2/2006", "01-02-2006", "1-2-2006", "2006/01/02"}
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, v)
+		if err == nil {
+			return t.Format("2006-01-02")
+		}
+	}
+	return ""
+}
+
+func normalizeClock(v string) string {
+	v = strings.TrimSpace(strings.ToUpper(v))
+	if v == "" {
+		return ""
+	}
+	layouts := []string{"15:04", "3:04PM", "3:04 PM", "3PM", "3 PM", "15:04:05"}
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, v)
+		if err == nil {
+			return t.Format("15:04")
+		}
+	}
+	return ""
+}
+
+func normalizePaymentStatus(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	switch v {
+	case "paid", "complete", "completed":
+		return "paid"
+	case "partial", "partially paid", "part-paid", "part paid":
+		return "partial"
+	case "unpaid", "due", "open":
+		return "unpaid"
+	default:
+		return ""
+	}
+}
+
+func extractInvoiceFromImage(image []byte, contentType string) (AIExtractedInvoice, error) {
+	apiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	if apiKey == "" {
+		return AIExtractedInvoice{}, fmt.Errorf("AI import is not configured. Set OPENAI_API_KEY in your environment or secrets file")
+	}
+
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OPENAI_BASE_URL")), "/")
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	endpoint := baseURL + "/chat/completions"
+	model := aiModelName()
+
+	dataURL := "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(image)
+
+	type openAIResponseFormat struct {
+		Type string `json:"type"`
+	}
+	type openAIMessage struct {
+		Role    string `json:"role"`
+		Content any    `json:"content"`
+	}
+	type openAIRequest struct {
+		Model          string               `json:"model"`
+		Messages       []openAIMessage      `json:"messages"`
+		ResponseFormat openAIResponseFormat `json:"response_format"`
+	}
+
+	instruction := `Extract invoice fields from this image and return ONLY JSON with keys:
+invoiceDate (YYYY-MM-DD if possible), clientName, phone, email, location, timeIn (HH:MM 24h if possible), timeOut (HH:MM 24h if possible), paymentStatus (unpaid|partial|paid), amountPaid (number), lineItems (array of {description, price}).
+If unknown, use empty string, 0, or [] as appropriate.`
+
+	reqPayload := openAIRequest{
+		Model: model,
+		Messages: []openAIMessage{
+			{Role: "system", Content: "You are an invoice OCR parser. Output strict JSON only."},
+			{
+				Role: "user",
+				Content: []map[string]any{
+					{"type": "text", "text": instruction},
+					{"type": "image_url", "image_url": map[string]any{"url": dataURL}},
+				},
+			},
+		},
+		ResponseFormat: openAIResponseFormat{Type: "json_object"},
+	}
+
+	body, err := json.Marshal(reqPayload)
+	if err != nil {
+		return AIExtractedInvoice{}, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return AIExtractedInvoice{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return AIExtractedInvoice{}, fmt.Errorf("AI request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return AIExtractedInvoice{}, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var e struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(respBody, &e) == nil && strings.TrimSpace(e.Error.Message) != "" {
+			return AIExtractedInvoice{}, fmt.Errorf("AI import failed: %s", e.Error.Message)
+		}
+		return AIExtractedInvoice{}, fmt.Errorf("AI import failed with HTTP %d", resp.StatusCode)
+	}
+
+	var completion struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(respBody, &completion); err != nil {
+		return AIExtractedInvoice{}, fmt.Errorf("Could not parse AI response")
+	}
+	if len(completion.Choices) == 0 {
+		return AIExtractedInvoice{}, fmt.Errorf("AI returned no extraction result")
+	}
+
+	jsonText := extractFirstJSONObject(completion.Choices[0].Message.Content)
+	if jsonText == "" {
+		jsonText = completion.Choices[0].Message.Content
+	}
+
+	var parsed map[string]any
+	dec := json.NewDecoder(strings.NewReader(jsonText))
+	dec.UseNumber()
+	if err := dec.Decode(&parsed); err != nil {
+		return AIExtractedInvoice{}, fmt.Errorf("AI response was not valid JSON")
+	}
+
+	out := AIExtractedInvoice{}
+	if v, ok := parsed["invoiceDate"].(string); ok {
+		out.InvoiceDate = normalizeISODate(v)
+	}
+	if v, ok := parsed["clientName"].(string); ok {
+		out.ClientName = strings.TrimSpace(v)
+	}
+	if v, ok := parsed["phone"].(string); ok {
+		out.Phone = strings.TrimSpace(v)
+	}
+	if v, ok := parsed["email"].(string); ok {
+		out.Email = strings.TrimSpace(v)
+	}
+	if v, ok := parsed["location"].(string); ok {
+		out.Location = strings.TrimSpace(v)
+	}
+	if v, ok := parsed["timeIn"].(string); ok {
+		out.TimeIn = normalizeClock(v)
+	}
+	if v, ok := parsed["timeOut"].(string); ok {
+		out.TimeOut = normalizeClock(v)
+	}
+	if v, ok := parsed["paymentStatus"].(string); ok {
+		out.PaymentStatus = normalizePaymentStatus(v)
+	}
+	out.AmountPaid = math.Max(0, parseLooseFloat(parsed["amountPaid"]))
+
+	if rawItems, ok := parsed["lineItems"].([]any); ok {
+		for _, rawItem := range rawItems {
+			m, ok := rawItem.(map[string]any)
+			if !ok {
+				continue
+			}
+			desc, _ := m["description"].(string)
+			desc = strings.TrimSpace(desc)
+			price := math.Max(0, parseLooseFloat(m["price"]))
+			if desc == "" && price == 0 {
+				continue
+			}
+			out.LineItems = append(out.LineItems, AIExtractedLineItem{Description: desc, Price: price})
+		}
+	}
+
+	return out, nil
+}
+
+func applyExtractedInvoiceToDraft(extracted AIExtractedInvoice) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if extracted.InvoiceDate != "" {
+		data.InvoiceDate = extracted.InvoiceDate
+	}
+	if extracted.ClientName != "" {
+		data.ClientName = extracted.ClientName
+	}
+	if extracted.Phone != "" {
+		data.Phone = extracted.Phone
+	}
+	if extracted.Email != "" {
+		data.Email = extracted.Email
+	}
+	if extracted.Location != "" {
+		data.Location = extracted.Location
+	}
+	if extracted.TimeIn != "" {
+		data.TimeIn = extracted.TimeIn
+	}
+	if extracted.TimeOut != "" {
+		data.TimeOut = extracted.TimeOut
+	}
+	if extracted.PaymentStatus != "" {
+		data.PaymentStatus = extracted.PaymentStatus
+	}
+	if extracted.AmountPaid > 0 {
+		data.AmountPaid = extracted.AmountPaid
+		if data.PaymentStatus == "" || data.PaymentStatus == "unpaid" {
+			data.PaymentStatus = "partial"
+		}
+	}
+
+	if len(extracted.LineItems) > 0 {
+		if data.NextJobID <= 0 {
+			data.NextJobID = 1
+		}
+		jobs := make([]Job, 0, len(extracted.LineItems))
+		for _, item := range extracted.LineItems {
+			if strings.TrimSpace(item.Description) == "" && item.Price == 0 {
+				continue
+			}
+			jobs = append(jobs, Job{
+				ID:          data.NextJobID,
+				Description: strings.TrimSpace(item.Description),
+				Price:       item.Price,
+			})
+			data.NextJobID++
+		}
+		if len(jobs) > 0 {
+			data.Jobs = jobs
+		}
+	}
+
+	return saveData()
 }
 
 func updateHandler(w http.ResponseWriter, r *http.Request) {
@@ -1242,6 +1669,8 @@ func main() {
 	mux.HandleFunc("POST /logout", logoutHandler)
 
 	mux.HandleFunc("GET /app", requireAuth(requireSignature(indexHandler)))
+	mux.HandleFunc("GET /app/import", requireAuth(requireSignature(invoiceImportPageHandler)))
+	mux.HandleFunc("POST /app/import", requireAuth(requireCSRF(requireSignature(invoiceImportSubmitHandler))))
 	mux.HandleFunc("GET /admin/service-requests", requireAuth(serviceRequestsHandler))
 	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))

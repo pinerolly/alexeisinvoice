@@ -1,11 +1,29 @@
-# Staging/local mode: listen on plain HTTP to avoid ACME validation failures
-# when this host is behind another proxy or only resolves via local DNS.
-:80 {
-handle /tools/whoami* {
-reverse_proxy whoami:80
+electroclimapro.us {
+	redir https://www.electroclimapro.us{uri} permanent
 }
 
-handle {
-reverse_proxy invoiceapp:8080
+http://192.168.1.14 {
+	handle /invoice-app.html {
+		root * /srv/site
+		file_server
+	}
+
+	handle /invoice.html {
+		root * /srv/site
+		file_server
+	}
+
+	handle {
+		reverse_proxy invoiceapp:8080
+	}
 }
+
+www.electroclimapro.us {
+	handle /tools/whoami* {
+		reverse_proxy whoami:80
+	}
+
+	handle {
+		reverse_proxy invoiceapp:8080
+	}
 }

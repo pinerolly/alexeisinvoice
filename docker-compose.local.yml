@@ -4,3 +4,7 @@ services:
       TEMPLATE_DIR: /templates
     volumes:
       - ./goapp/templates:/templates:ro
+
+  caddy:
+    volumes:
+      - ./:/srv/site:ro

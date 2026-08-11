@@ -1,0 +1,237 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import Invoice Photo - Electroclima Pro Services, LLC</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+        --ok-bg: #e8f6ec;
+        --ok-border: #b6e2c1;
+        --ok-text: #1a5d2d;
+        --warn-bg: #fff3cd;
+        --warn-border: #ffe69c;
+        --warn-text: #664d03;
+        --err-bg: #fdeaea;
+        --err-border: #f3b8b8;
+        --err-text: #a22;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        margin: 0;
+        padding: 20px;
+      }
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+        color: var(--primary);
+      }
+      .lead {
+        margin: 0 0 16px;
+        color: #444;
+      }
+      .banner {
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+        font-size: 14px;
+      }
+      .banner.warn {
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-border);
+        color: var(--warn-text);
+      }
+      .banner.error {
+        background: var(--err-bg);
+        border: 1px solid var(--err-border);
+        color: var(--err-text);
+      }
+      .banner.ok {
+        background: var(--ok-bg);
+        border: 1px solid var(--ok-border);
+        color: var(--ok-text);
+      }
+      .field {
+        margin-top: 14px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 6px;
+      }
+      input[type="file"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+      }
+      .hint {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #666;
+      }
+      .preview {
+        margin-top: 14px;
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        padding: 10px;
+        background: var(--light-bg);
+      }
+      .preview img {
+        max-width: 100%;
+        max-height: 420px;
+        display: none;
+        border-radius: 4px;
+      }
+      .actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      button,
+      .link-btn {
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .link-btn.secondary {
+        background: var(--light-bg);
+        color: var(--primary);
+        border: 1px solid var(--border);
+      }
+      .status {
+        margin-top: 12px;
+        font-size: 14px;
+        color: #555;
+      }
+      @media (max-width: 700px) {
+        body {
+          padding: 12px;
+        }
+        .card {
+          padding: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {{template "nav" .}}
+    <div class="wrap">
+      <div class="card">
+        <h1>Import Invoice From Photo</h1>
+        <p class="lead">
+          Upload a picture taken by your phone camera or selected from your photo
+          library. AI will extract fields and pre-fill your invoice editor.
+        </p>
+
+        {{if not .ModelConfigured}}
+        <div class="banner warn">
+          AI import is not configured yet. Set OPENAI_API_KEY in your
+          environment/secrets file and restart the app container.
+        </div>
+        {{else}}
+        <div class="banner ok">AI model configured: {{.Model}}</div>
+        {{end}} {{if .Error}}
+        <div class="banner error">{{.Error}}</div>
+        {{end}} {{if .Success}}
+        <div class="banner ok">
+          Photo imported. Review all values in the editor before printing.
+        </div>
+        {{end}}
+
+        <form method="POST" action="/app/import" enctype="multipart/form-data" id="importForm">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <div class="field">
+            <label for="invoicePhoto">Invoice Photo</label>
+            <input
+              id="invoicePhoto"
+              name="invoicePhoto"
+              type="file"
+              accept="image/*"
+              required
+            />
+            <div class="hint">
+              Recommended: clear photo, no glare, all invoice text visible.
+            </div>
+          </div>
+
+          <div class="preview">
+            <img id="previewImg" alt="Invoice photo preview" />
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary" id="importBtn">
+              Extract And Fill Invoice
+            </button>
+            <a href="/app" class="link-btn secondary">Back To Editor</a>
+          </div>
+          <div class="status" id="statusMsg"></div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const fileInput = document.getElementById("invoicePhoto");
+        const preview = document.getElementById("previewImg");
+        const form = document.getElementById("importForm");
+        const btn = document.getElementById("importBtn");
+        const statusMsg = document.getElementById("statusMsg");
+
+        fileInput.addEventListener("change", () => {
+          const file = fileInput.files && fileInput.files[0];
+          if (!file) {
+            preview.removeAttribute("src");
+            preview.style.display = "none";
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            preview.src = String(reader.result || "");
+            preview.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        });
+
+        form.addEventListener("submit", () => {
+          btn.disabled = true;
+          btn.textContent = "Extracting...";
+          statusMsg.textContent = "AI is reading the invoice photo and filling your draft.";
+        });
+      })();
+    </script>
+  </body>
+</html>
