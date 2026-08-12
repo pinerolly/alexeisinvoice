@@ -1,4 +1,8 @@
-{$SITE_HOST:electroclimapro.lostitos.us} {
+electroclimapro.us {
+redir https://www.electroclimapro.us{uri} permanent
+}
+
+www.electroclimapro.us {
 handle /tools/whoami* {
 reverse_proxy whoami:80
 }
