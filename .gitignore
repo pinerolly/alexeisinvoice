@@ -10,6 +10,7 @@ goapp/cookies.txt
 cookies.txt
 .env
 secrets/invoice.env
+secrets/rclone.conf
 data/invoice/
 *.exe
 /tmp/

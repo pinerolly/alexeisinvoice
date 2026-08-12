@@ -30,6 +30,18 @@ jobs:
             cd "$APP_ROOT"
             git pull origin main
 
+            if ! command -v rclone >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rclone
+            fi
+
+            sudo install -m 0755 "$APP_ROOT/scripts/sync_invoice_data_to_gdrive.sh" /usr/local/bin/sync_invoice_data_to_gdrive.sh
+            sudo install -m 0644 "$APP_ROOT/ops/invoice-gdrive-backup.service" /etc/systemd/system/invoice-gdrive-backup.service
+            sudo install -m 0644 "$APP_ROOT/ops/invoice-gdrive-backup.timer" /etc/systemd/system/invoice-gdrive-backup.timer
+            sudo systemctl daemon-reload
+            sudo systemctl enable --now invoice-gdrive-backup.timer
+            sudo systemctl start invoice-gdrive-backup.service || true
+
             # Rebuild and force restart the stack with persistent host paths.
             sudo APP_SECRETS_FILE="$DATA_ROOT/secrets/invoice.env" \
               INVOICE_DATA_DIR="$DATA_ROOT/data" \

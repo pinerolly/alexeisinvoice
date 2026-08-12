@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup invoice data to Google Drive via rclone
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/srv/invoice/secrets/invoice.env
+Environment=SRC_DIR=/srv/invoice/data
+Environment=MINIO_DIR=/srv/invoice/minio
+Environment=LOG_FILE=/var/log/invoice-gdrive-sync.log
+ExecStart=/bin/bash /usr/local/bin/sync_invoice_data_to_gdrive.sh
