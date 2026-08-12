@@ -4,12 +4,12 @@ electroclimapro.us {
 
 http://192.168.1.14 {
 	handle /invoice-app.html {
-		root * /srv/site
+		root * /srv/site/static
 		file_server
 	}
 
 	handle /invoice.html {
-		root * /srv/site
+		root * /srv/site/static
 		file_server
 	}
 
