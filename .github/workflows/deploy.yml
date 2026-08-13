@@ -35,7 +35,7 @@ jobs:
               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y rclone
             fi
 
-            sudo install -m 0755 "$APP_ROOT/scripts/sync_invoice_data_to_gdrive.sh" /usr/local/bin/sync_invoice_data_to_gdrive.sh
+            sudo install -m 0755 "$APP_ROOT/scripts/backup_invoices_to_gdrive.sh" /usr/local/bin/backup_invoices_to_gdrive.sh
             sudo install -m 0644 "$APP_ROOT/ops/invoice-gdrive-backup.service" /etc/systemd/system/invoice-gdrive-backup.service
             sudo install -m 0644 "$APP_ROOT/ops/invoice-gdrive-backup.timer" /etc/systemd/system/invoice-gdrive-backup.timer
             sudo systemctl daemon-reload
