@@ -79,6 +79,8 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      SITE_HOST: ${SITE_HOST:-}
     ports:
       - "80:80"
       - "443:443"

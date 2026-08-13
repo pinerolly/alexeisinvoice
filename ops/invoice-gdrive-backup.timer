@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Google Drive backup every 15 minutes
+Description=Run invoice Google Drive backup hourly
 
 [Timer]
-OnBootSec=3min
-OnUnitActiveSec=15min
+OnBootSec=5min
+OnUnitActiveSec=1h
 AccuracySec=1min
 Persistent=true
 Unit=invoice-gdrive-backup.service

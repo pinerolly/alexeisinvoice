@@ -1,12 +1,12 @@
 [Unit]
-Description=Backup invoice data to Google Drive via rclone
-After=network-online.target
+Description=Export invoice PDFs and mirror them to Google Drive via rclone
+After=network-online.target docker.service
 Wants=network-online.target
+Requires=docker.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=-/srv/invoice/secrets/invoice.env
-Environment=SRC_DIR=/srv/invoice/data
-Environment=MINIO_DIR=/srv/invoice/minio
-Environment=LOG_FILE=/var/log/invoice-gdrive-sync.log
-ExecStart=/bin/bash /usr/local/bin/sync_invoice_data_to_gdrive.sh
+Environment=RCLONE_CONFIG=/home/ubuntu/.config/rclone/rclone.conf
+Environment=REMOTE=gdrive:Invoices
+Environment=PROJECT_DIR=/home/ubuntu/docker/alexeisinvoice
+ExecStart=/usr/local/bin/backup_invoices_to_gdrive.sh

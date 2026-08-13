@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-pdf/fpdf"
@@ -227,4 +230,52 @@ func drawInfoBox(pdf *fpdf.Fpdf, x, y, w float64, heading string, lines []string
 
 func invoiceFilename(title string) string {
 	return fmt.Sprintf("%s.pdf", title)
+}
+
+// exportAllInvoicePDFs renders every invoice in the database to a PDF file in
+// dir, named "<id>_<client>_<date>.pdf". Used by the offline Google Drive
+// backup job so the stored copies match the app's on-screen/emailed layout.
+func exportAllInvoicePDFs(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	rows, err := db.Query(`SELECT id FROM invoices ORDER BY id ASC`)
+	if err != nil {
+		return err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	written := 0
+	for _, id := range ids {
+		inv, client, err := getInvoiceWithJobs(id)
+		if err != nil {
+			log.Printf("export: skipping invoice %d: %v", id, err)
+			continue
+		}
+		title := clientTitle(client.Name, inv.InvoiceDate)
+		pdfBytes, err := generateInvoicePDF(inv, client, title, id)
+		if err != nil {
+			log.Printf("export: invoice %d PDF failed: %v", id, err)
+			continue
+		}
+		name := fmt.Sprintf("%d_%s", id, invoiceFilename(title))
+		if err := os.WriteFile(filepath.Join(dir, name), pdfBytes, 0o644); err != nil {
+			return err
+		}
+		written++
+	}
+	log.Printf("export: wrote %d/%d invoice PDFs to %s", written, len(ids), dir)
+	return nil
 }
