@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -94,20 +94,20 @@
     {{template "nav" .}}
     <div class="page">
       <div class="card">
-        <h1>Service Requests</h1>
-        <p class="sub">Public website requests submitted by customers.</p>
+        <h1>Solicitudes de Servicio</h1>
+        <p class="sub">Solicitudes enviadas por los clientes desde el sitio web público.</p>
         {{if .Requests}}
         <table>
           <thead>
             <tr>
               <th>ID</th>
-              <th>Date</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Email</th>
-              <th>Service</th>
-              <th>Message</th>
-              <th>Status</th>
+              <th>Fecha</th>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Correo</th>
+              <th>Servicio</th>
+              <th>Mensaje</th>
+              <th>Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -126,7 +126,7 @@
           </tbody>
         </table>
         {{else}}
-        <p class="empty">No service requests yet.</p>
+        <p class="empty">Aún no hay solicitudes de servicio.</p>
         {{end}}
       </div>
     </div>

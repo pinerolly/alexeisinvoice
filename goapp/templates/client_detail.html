@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{.Client.Name}} - Client History</title>
+    <title>{{.Client.Name}} - Historial del Cliente</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -167,52 +167,52 @@
 
     <div class="page">
       <div class="panel">
-        <a class="back-link" href="/clients">&larr; All Clients</a>
+        <a class="back-link" href="/clients">&larr; Todos los Clientes</a>
         <h1 style="margin-top: 10px">{{.Client.Name}}</h1>
         <div class="contact-info">
           {{if .Client.Phone}}
-          <p>Phone: {{.Client.Phone}}</p>
+          <p>Teléfono: {{.Client.Phone}}</p>
           {{end}} {{if .Client.Email}}
-          <p>Email: {{.Client.Email}}</p>
+          <p>Correo: {{.Client.Email}}</p>
           {{end}}
-          <p>Lifetime Total: {{money .LifetimeTotal}}</p>
-          <p>Total Debt: {{money .TotalDebt}}</p>
+          <p>Total Histórico: {{money .LifetimeTotal}}</p>
+          <p>Deuda Total: {{money .TotalDebt}}</p>
         </div>
       </div>
 
       <div class="panel">
-        <h1>Invoice History</h1>
+        <h1>Historial de Facturas</h1>
         <div class="status-filters">
           <a
             class="{{if eq .StatusFilter ""}}active{{end}}"
             href="/clients/{{.Client.ID}}"
-            >All</a
+            >Todas</a
           >
           <a
             class="{{if eq .StatusFilter "unpaid"}}active{{end}}"
             href="/clients/{{.Client.ID}}?status=unpaid"
-            >Unpaid</a
+            >Sin pagar</a
           >
           <a
             class="{{if eq .StatusFilter "partial"}}active{{end}}"
             href="/clients/{{.Client.ID}}?status=partial"
-            >Partial</a
+            >Parcial</a
           >
           <a
             class="{{if eq .StatusFilter "paid"}}active{{end}}"
             href="/clients/{{.Client.ID}}?status=paid"
-            >Paid</a
+            >Pagada</a
           >
         </div>
         {{if .Invoices}}
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th style="text-align: center">Jobs</th>
+              <th>Fecha</th>
+              <th style="text-align: center">Trabajos</th>
               <th style="text-align: right">Total</th>
-              <th style="text-align: right">Debt</th>
-              <th>Status</th>
+              <th style="text-align: right">Deuda</th>
+              <th>Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -249,13 +249,13 @@
                   />
                   <select name="payment_status" onchange="this.form.submit()">
                     <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
-                      Unpaid
+                      Sin pagar
                     </option>
                     <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
-                      Partial
+                      Parcial
                     </option>
                     <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
-                      Paid
+                      Pagada
                     </option>
                   </select>
                 </form>
@@ -276,7 +276,7 @@
                     value="/clients/{{$.Client.ID}}"
                   />
                   <input type="hidden" name="amount" value="" />
-                  <button type="submit">+ Payment</button>
+                  <button type="submit">+ Pago</button>
                 </form>
                 {{else}}
                 {{.PaymentStatus}}
@@ -287,17 +287,17 @@
           </tbody>
         </table>
         {{else}}
-        <div class="empty">No invoices recorded for this client yet.</div>
+        <div class="empty">Aún no hay facturas registradas para este cliente.</div>
         {{end}}
       </div>
     </div>
     <script>
       function submitInstallmentPayment(form) {
-        var amount = prompt("Payment amount received:", "");
+        var amount = prompt("Monto del pago recibido:", "");
         if (amount === null) return false;
         var parsed = parseFloat(amount);
         if (isNaN(parsed) || parsed <= 0) {
-          alert("Please enter a valid positive amount.");
+          alert("Por favor ingresa un monto válido y positivo.");
           return false;
         }
         form.querySelector('input[name="amount"]').value = parsed;

@@ -1,5 +1,5 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -537,7 +537,7 @@
   </head>
   <body>
     {{template "nav" .}} {{if .EmailSent}}
-    <div class="banner success">Invoice emailed successfully.</div>
+    <div class="banner success">Factura enviada por correo correctamente.</div>
     {{end}} {{if .EmailError}}
     <div class="banner error">{{.EmailError}}</div>
     {{end}}
@@ -549,24 +549,24 @@
     {{end}}
 
     <div class="toolbar">
-      <a class="secondary" href="/clients/{{.ClientID}}">Invoice History</a>
-      <a class="secondary" href="/invoices/{{.InvoiceID}}/edit">Edit Invoice</a>
+      <a class="secondary" href="/clients/{{.ClientID}}">Historial de Facturas</a>
+      <a class="secondary" href="/invoices/{{.InvoiceID}}/edit">Editar Factura</a>
       <a class="secondary" href="/invoices/{{.InvoiceID}}/download"
-        >Download PDF</a
+        >Descargar PDF</a
       >
-      <button type="button" onclick="window.print()">Print PDF</button>
+      <button type="button" onclick="window.print()">Imprimir PDF</button>
       {{if .IsAdmin}}
       <form
         method="POST"
         action="/invoices/{{.InvoiceID}}/delete"
         onsubmit="
           return confirm(
-            'Delete this invoice permanently? This cannot be undone.',
+            '¿Eliminar esta factura de forma permanente? Esto no se puede deshacer.',
           );
         "
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-        <button type="submit" class="danger">Delete Invoice</button>
+        <button type="submit" class="danger">Eliminar Factura</button>
       </form>
       {{end}}
     </div>
@@ -581,14 +581,14 @@
         <input type="hidden" name="cc_open" value="{{if .ShowCC}}1{{else}}0{{end}}" />
         <label class="attach-zip-toggle">
           <input type="checkbox" name="attach_evidence_zip" value="1" {{if .AttachZip}}checked{{end}} />
-          Attach Photos ZIP
+          Adjuntar ZIP de Fotos
         </label>
-        <span class="attach-zip-note">Client receives all work photos in a ZIP.</span>
+        <span class="attach-zip-note">El cliente recibe todas las fotos del trabajo en un ZIP.</span>
         <input
           type="email"
           name="to"
           value="{{.EmailTo}}"
-          placeholder="client@example.com"
+          placeholder="cliente@ejemplo.com"
           required
         />
         <button type="button" class="cc-toggle" onclick="toggleCcField(this)">Cc</button>
@@ -596,15 +596,15 @@
           type="email"
           name="cc"
           value="{{.DefaultCC}}"
-          placeholder="cc@example.com"
+          placeholder="cc@ejemplo.com"
           class="hidden"
         />
-        <button type="submit">Email PDF</button>
+        <button type="submit">Enviar PDF por Correo</button>
       </form>
     </div>
 
     <div class="photo-row">
-      <h3>Work Evidence Photos</h3>
+      <h3>Fotos de Evidencia del Trabajo</h3>
       <form
         method="POST"
         action="/invoices/{{.InvoiceID}}/photos"
@@ -627,16 +627,16 @@
       <div class="photo-actions">
         <label class="photo-select-control">
           <input type="checkbox" id="select-all-photos" onchange="toggleAllPhotos(this)" />
-          Select all
+          Seleccionar todas
         </label>
-        <span class="photo-select-note">Select photos to download or delete.</span>
+        <span class="photo-select-note">Selecciona fotos para descargar o eliminar.</span>
         <button
           type="submit"
           class="secondary"
           formaction="/invoices/{{.InvoiceID}}/photos/download-selected"
           onclick="return validateSelectedPhotos('download');"
         >
-          Download Selected ZIP
+          Descargar ZIP Seleccionado
         </button>
         <button
           type="submit"
@@ -644,7 +644,7 @@
           formaction="/invoices/{{.InvoiceID}}/photos/delete-selected"
           onclick="return confirmDeleteSelectedPhotos();"
         >
-          Delete Selected
+          Eliminar Seleccionadas
         </button>
       </div>
       <div class="photo-grid">
@@ -653,13 +653,13 @@
           <div class="photo-thumb-wrap">
             <input class="photo-check" type="checkbox" name="photo_ids" value="{{.ID}}" />
             <a href="/invoices/{{$.InvoiceID}}/photos/{{.ID}}" target="_blank" rel="noopener">
-              <img src="/invoices/{{$.InvoiceID}}/photos/{{.ID}}" alt="Work evidence photo" />
+              <img src="/invoices/{{$.InvoiceID}}/photos/{{.ID}}" alt="Foto de evidencia del trabajo" />
             </a>
           </div>
           <div class="photo-meta">
             <span class="photo-name" title="{{.Filename}}">{{.Filename}}</span>
             <div class="photo-extra">
-              By {{if .Uploader}}{{.Uploader}}{{else}}unknown{{end}} on {{formatTS .CreatedAt}}
+              Por {{if .Uploader}}{{.Uploader}}{{else}}desconocido{{end}} el {{formatTS .CreatedAt}}
             </div>
           </div>
         </div>
@@ -680,35 +680,35 @@
           </div>
         </div>
         <div class="invoice-title">
-          <h1>INVOICE</h1>
-          <div class="invoice-no">Invoice #{{.InvoiceID}}</div>
-          <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
+          <h1>FACTURA</h1>
+          <div class="invoice-no">Factura #{{.InvoiceID}}</div>
+          <div class="invoice-no">Fecha: {{formatDate .InvoiceDate}}</div>
         </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-box">
-          <h3>Client</h3>
+          <h3>Cliente</h3>
           <p>{{if .ClientName}}{{.ClientName}}{{else}}&nbsp;{{end}}</p>
           {{if .Phone}}
-          <p>Phone: {{.Phone}}</p>
+          <p>Teléfono: {{.Phone}}</p>
           {{end}} {{if .Email}}
-          <p>Email: {{.Email}}</p>
+          <p>Correo: {{.Email}}</p>
           {{end}}
-          <p>Location: {{.Location}}</p>
+          <p>Ubicación: {{.Location}}</p>
         </div>
         <div class="meta-box">
-          <h3>Service Details</h3>
-          <p>Time In: {{formatTime .TimeIn}}</p>
-          <p>Time Out: {{formatTime .TimeOut}}</p>
+          <h3>Detalles del Servicio</h3>
+          <p>Hora de Entrada: {{formatTime .TimeIn}}</p>
+          <p>Hora de Salida: {{formatTime .TimeOut}}</p>
         </div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th style="width: 80%">Description of Work Performed</th>
-            <th style="width: 20%; text-align: right">Price</th>
+            <th style="width: 80%">Descripción del Trabajo Realizado</th>
+            <th style="width: 20%; text-align: right">Precio</th>
           </tr>
         </thead>
         <tbody>
@@ -724,7 +724,7 @@
       <div class="totals">
         <table>
           <tr class="grand-total">
-            <td>Total Amount Due</td>
+            <td>Monto Total a Pagar</td>
             <td style="text-align: right">{{money (total .Jobs)}}</td>
           </tr>
         </table>
@@ -736,13 +736,13 @@
           <img
             class="sig-preview"
             src="{{signatureURL .TechnicianSignature}}"
-            alt="Technician signature"
+            alt="Firma del técnico"
           />
           {{else}}
           <div class="sig-line"></div>
           {{end}}
           <div class="sig-label">
-            Technician Signature{{if .TechnicianUsername}}
+            Firma del Técnico{{if .TechnicianUsername}}
             ({{.TechnicianUsername}}){{end}}
           </div>
         </div>
@@ -751,29 +751,29 @@
           <img
             class="sig-preview"
             src="{{signatureURL .CustomerSignature}}"
-            alt="Customer signature"
+            alt="Firma del cliente"
           />
           {{else}}
           <div class="sig-line"></div>
           {{end}}
           <div class="sig-label">
-            Customer Signature{{if .ClientName}} ({{.ClientName}}){{end}}
+            Firma del Cliente{{if .ClientName}} ({{.ClientName}}){{end}}
           </div>
         </div>
       </div>
 
       <div class="footer-note">
-        Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services,
+        ¡Gracias por su preferencia! &nbsp;|&nbsp; Electroclima Pro Services,
         LLC &nbsp;|&nbsp; 786 389 3330
       </div>
     </div>
     <script>
       function submitInstallmentPayment(form) {
-        var amount = prompt("Payment amount received:", "");
+        var amount = prompt("Monto del pago recibido:", "");
         if (amount === null) return false;
         var parsed = parseFloat(amount);
         if (isNaN(parsed) || parsed <= 0) {
-          alert("Please enter a valid positive amount.");
+          alert("Por favor ingresa un monto válido y positivo.");
           return false;
         }
         form.querySelector('input[name="amount"]').value = parsed;
@@ -786,7 +786,7 @@
         if (cc.classList.contains("hidden")) {
           cc.classList.remove("hidden");
           ccOpen.value = "1";
-          button.textContent = "Undo";
+          button.textContent = "Deshacer";
           cc.focus();
           if (cc.value.trim() === "" && original !== "") {
             cc.value = original;
@@ -805,7 +805,7 @@
         if (cc.value.trim() !== "") {
           cc.classList.remove("hidden");
           ccOpen.value = "1";
-          if (toggle) toggle.textContent = "Undo";
+          if (toggle) toggle.textContent = "Deshacer";
         }
       });
 
@@ -845,7 +845,7 @@
         if (!validateSelectedPhotos("delete")) {
           return false;
         }
-        return confirm("Delete " + count + " selected photo(s)? This cannot be undone.");
+        return confirm("¿Eliminar " + count + " foto(s) seleccionada(s)? Esto no se puede deshacer.");
       }
 
       function validateSelectedPhotos(action) {
@@ -854,10 +854,10 @@
           return true;
         }
         if (action === "download") {
-          alert("Select at least one photo to download.");
+          alert("Selecciona al menos una foto para descargar.");
           return false;
         }
-        alert("Select at least one photo to delete.");
+        alert("Selecciona al menos una foto para eliminar.");
         return false;
       }
 

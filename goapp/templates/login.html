@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Log In - Electroclima Pro Services, LLC</title>
+    <title>Iniciar sesión - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -116,7 +116,7 @@
       {{end}}
       <form method="POST" action="/login">
         <input type="hidden" name="next" value="{{.Next}}" />
-        <label for="username">Username</label>
+        <label for="username">Usuario</label>
         <input
           type="text"
           id="username"
@@ -125,7 +125,7 @@
           required
         />
 
-        <label for="password">Password</label>
+        <label for="password">Contraseña</label>
         <div class="password-field">
           <input
             type="password"
@@ -137,7 +137,7 @@
           <button
             type="button"
             class="password-toggle"
-            aria-label="Show password"
+            aria-label="Mostrar contraseña"
             aria-pressed="false"
             onclick="togglePasswordVisibility(this)"
           >
@@ -155,7 +155,7 @@
           </button>
         </div>
 
-        <button type="submit">Log In</button>
+        <button type="submit">Iniciar sesión</button>
       </form>
     </div>
     <script>
@@ -166,7 +166,7 @@
         btn.setAttribute("aria-pressed", String(!showing));
         btn.setAttribute(
           "aria-label",
-          showing ? "Show password" : "Hide password",
+          showing ? "Mostrar contraseña" : "Ocultar contraseña",
         );
       }
     </script>

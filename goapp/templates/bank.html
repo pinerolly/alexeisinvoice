@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bank Accounts - Electroclima Pro Services, LLC</title>
+    <title>Cuentas Bancarias - Electroclima Pro Services, LLC</title>
     <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
     <style>
       :root {
@@ -103,42 +103,43 @@
     {{template "nav" .}}
     <div class="page">
       <div class="panel">
-        <h1>Bank Accounts</h1>
+        <h1>Cuentas Bancarias</h1>
         <p class="hint">
-          Connect your business bank account with Plaid to track incoming
-          payments (e.g. Zelle deposits) against invoices.
+          Conecta la cuenta bancaria de tu negocio con Plaid para dar
+          seguimiento a los pagos entrantes (por ejemplo, depósitos de Zelle)
+          asociados a las facturas.
         </p>
         <div id="connectError" class="error" style="display: none"></div>
         <button type="button" class="connect-btn" id="connectBtn">
-          Connect Bank
+          Conectar Banco
         </button>
 
         {{if .Items}}
         <table>
           <thead>
             <tr>
-              <th>Institution</th>
-              <th>Connected</th>
+              <th>Institución</th>
+              <th>Conectado</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {{range .Items}}
             <tr>
-              <td>{{if .InstitutionName}}{{.InstitutionName}}{{else}}Unknown{{end}}</td>
+              <td>{{if .InstitutionName}}{{.InstitutionName}}{{else}}Desconocida{{end}}</td>
               <td>{{.CreatedAt}}</td>
               <td>
                 <form
                   method="POST"
                   action="/admin/plaid/{{.ID}}/delete"
-                  onsubmit="return confirm('Disconnect this bank account?');"
+                  onsubmit="return confirm('¿Desconectar esta cuenta bancaria?');"
                 >
                   <input
                     type="hidden"
                     name="csrf_token"
                     value="{{$.CSRFToken}}"
                   />
-                  <button type="submit" class="delete-btn">Disconnect</button>
+                  <button type="submit" class="delete-btn">Desconectar</button>
                 </form>
               </td>
             </tr>
@@ -146,7 +147,7 @@
           </tbody>
         </table>
         {{else}}
-        <div class="empty">No bank accounts connected yet.</div>
+        <div class="empty">Aún no hay cuentas bancarias conectadas.</div>
         {{end}}
       </div>
     </div>
@@ -199,7 +200,7 @@
             },
             onExit: (err) => {
               if (err) {
-                showError(err.display_message || err.error_message || "Link exited with an error.");
+                showError(err.display_message || err.error_message || "La conexión terminó con un error.");
               }
             },
           });

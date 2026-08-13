@@ -386,6 +386,24 @@
         padding: 3px 8px;
         border-radius: 2px;
       }
+      .trust-strip {
+        margin-top: 20px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, #20262d 0%, #1b2026 100%);
+        border-radius: 6px;
+        padding: 16px 18px;
+      }
+      .trust-strip p {
+        margin: 0;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--silver);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .trust-strip p + p {
+        margin-top: 8px;
+      }
 
       .proof-grid {
         display: grid;
@@ -525,10 +543,50 @@
       }
 
       @media (max-width: 980px) {
+        .wrap {
+          padding: 0 20px;
+        }
+        .nav {
+          min-height: 72px;
+          gap: 14px;
+        }
+        .nav-right {
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .call-btn,
+        .portal-btn {
+          padding: 9px 12px;
+          font-size: 12px;
+        }
         .hero-grid,
         .contact-grid,
         .proof-grid {
           grid-template-columns: 1fr;
+        }
+        .hero-grid {
+          gap: 30px;
+        }
+        .hero {
+          padding: 72px 0 56px;
+        }
+        .hero p {
+          font-size: 16px;
+          margin-bottom: 26px;
+        }
+        .section {
+          padding: 66px 0;
+        }
+        .section-head {
+          margin-bottom: 34px;
+        }
+        .service-card,
+        .proof-card {
+          padding: 22px;
+        }
+        .trust-strip {
+          padding: 14px 16px;
         }
         .services-grid {
           grid-template-columns: repeat(2, 1fr);
@@ -538,15 +596,98 @@
         }
       }
       @media (max-width: 640px) {
+        .wrap {
+          padding: 0 16px;
+        }
+        .nav {
+          min-height: auto;
+          padding: 12px 0;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .brand {
+          font-size: 18px;
+        }
+        .brand small {
+          font-size: 9px;
+        }
+        .nav-right {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .lang-toggle {
+          order: 1;
+        }
+        .call-btn,
+        .portal-btn {
+          order: 2;
+          flex: 1 1 calc(50% - 6px);
+          text-align: center;
+        }
         .services-grid {
           grid-template-columns: 1fr;
         }
         .hero {
-          padding-top: 64px;
+          padding: 54px 0 44px;
+        }
+        .eyebrow {
+          font-size: 11px;
+          margin-bottom: 14px;
+        }
+        .hero h1 {
+          font-size: clamp(30px, 9vw, 40px);
+          margin-bottom: 14px;
+        }
+        .hero p {
+          font-size: 15px;
+          margin-bottom: 20px;
+        }
+        .hero-ctas {
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 22px;
+        }
+        .btn-primary,
+        .btn-secondary {
+          width: 100%;
+          text-align: center;
+          padding: 13px 16px;
+        }
+        .section {
+          padding: 54px 0;
+        }
+        .section-head h2 {
+          font-size: clamp(24px, 8vw, 32px);
+          margin-bottom: 10px;
+        }
+        .section-head p {
+          font-size: 14px;
+        }
+        .service-card,
+        .proof-card,
+        .contact-panel {
+          padding: 18px;
+        }
+        .trust-strip p {
+          font-size: 11px;
+          letter-spacing: 0.03em;
         }
         .hero-stats {
-          flex-direction: column;
+          display: grid;
+          grid-template-columns: 1fr;
           gap: 12px;
+        }
+        .hero-stats strong {
+          font-size: 24px;
+        }
+      }
+      @media (max-width: 420px) {
+        .call-btn,
+        .portal-btn {
+          flex: 1 1 100%;
+        }
+        .hero h1 {
+          font-size: 30px;
         }
       }
     </style>
@@ -570,8 +711,8 @@
         </nav>
         <div class="nav-right">
           <div class="lang-toggle" role="group" aria-label="Language selector">
-            <button type="button" id="btn-en" onclick="setLang('en')">EN</button>
-            <button type="button" id="btn-es" onclick="setLang('es')">ES</button>
+            <button type="button" id="btn-en" data-lang-toggle="en" onclick="setLang('en')">EN</button>
+            <button type="button" id="btn-es" data-lang-toggle="es" onclick="setLang('es')">ES</button>
           </div>
           <a class="call-btn" href="tel:7863893330" data-i18n="call_btn">Call 786 389 3330</a>
           <a class="portal-btn" href="/login" data-i18n="portal_btn">Worker Portal</a>
@@ -584,17 +725,17 @@
         <div>
           <div class="eyebrow" data-i18n="hero_eyebrow">Miami service visits with documented work</div>
           <h1>
-            <span data-i18n="hero_h1_line1">Cooling issues fixed in the field.</span><br />
-            <span data-i18n="hero_h1_line2">Work clearly documented.</span>
+            <span data-i18n="hero_h1_line1">HVAC and kitchen equipment service</span><br />
+            <span data-i18n="hero_h1_line2">for homes and restaurants.</span>
           </h1>
           <p data-i18n="hero_p">
-            Electroclima Pro Services supports homeowners, property managers,
-            and small businesses with HVAC diagnostics, airflow correction,
-            return duct improvements, and invoice-backed service records.
+            Cooling and hot-side work, done right and clearly documented.
+            Every visit includes a clear summary of completed work and digital
+            delivery when needed.
           </p>
           <div class="hero-ctas">
             <a class="btn-primary" href="#contact" data-i18n="hero_cta1">Request Service</a>
-            <a class="btn-secondary" href="mailto:electroclimaprollc@gmail.com" data-i18n="hero_cta2">Email Us</a>
+            <a class="btn-secondary" href="https://wa.me/17863893330" target="_blank" rel="noopener" data-i18n="hero_cta2">Chat on WhatsApp</a>
           </div>
           <div class="hero-stats">
             <div><strong>24/7</strong><span data-i18n="stat1">Emergency response</span></div>
@@ -635,11 +776,10 @@
       <div class="wrap">
         <div class="section-head">
           <div class="eyebrow" data-i18n="services_eyebrow">What we do</div>
-          <h2 data-i18n="services_h2">Residential and light commercial HVAC service</h2>
+          <h2 data-i18n="services_h2">Residential, restaurant, and light commercial service</h2>
           <p data-i18n="services_p">
-            Public customers can review services here. Internal invoices,
-            technician signatures, and evidence uploads remain in the protected
-            company portal.
+            We serve homes, restaurants, and small businesses in Miami. We
+            handle air conditioning, airflow, return ducts, kitchens, and ovens.
           </p>
         </div>
         <div class="services-grid">
@@ -673,6 +813,15 @@
             <p data-i18n="svc6_p">Professional PDF invoice delivery with optional photo ZIP bundle.</p>
             <span class="service-tag" data-i18n="svc6_t">Digital workflow</span>
           </div>
+          <div class="service-card">
+            <h3 data-i18n="svc7_h">Hot-side kitchen equipment</h3>
+            <p data-i18n="svc7_p">Service support for kitchen lines, ovens, and related hot-work systems in restaurants and homes.</p>
+            <span class="service-tag" data-i18n="svc7_t">Kitchen and oven service</span>
+          </div>
+        </div>
+        <div class="trust-strip">
+          <p data-i18n="trust_line1">Homes • Restaurants • Local businesses</p>
+          <p data-i18n="trust_line2">Fast response • Clean work • Clear communication</p>
         </div>
       </div>
     </section>
@@ -773,11 +922,11 @@
           call_btn: "Call 786 389 3330",
           portal_btn: "Worker Portal",
           hero_eyebrow: "Miami service visits with documented work",
-          hero_h1_line1: "Cooling issues fixed in the field.",
-          hero_h1_line2: "Work clearly documented.",
-          hero_p: "Electroclima Pro Services supports homeowners, property managers, and small businesses with HVAC diagnostics, airflow correction, return duct improvements, and invoice-backed service records.",
+          hero_h1_line1: "HVAC and kitchen equipment service",
+          hero_h1_line2: "for homes and restaurants.",
+          hero_p: "Cooling and hot-side work, done right and clearly documented. Every visit includes a clear summary of completed work and digital delivery when needed.",
           hero_cta1: "Request Service",
-          hero_cta2: "Email Us",
+          hero_cta2: "Chat on WhatsApp",
           stat1: "Emergency response",
           stat2: "Signed service records",
           stat3_value: "Local",
@@ -788,8 +937,8 @@
           sheet_focus_p: "A/C diagnostics, airflow fixes, return duct corrections, and complete job documentation per visit.",
           sheet_desc: "Description of Work Performance",
           services_eyebrow: "What we do",
-          services_h2: "Residential and light commercial HVAC service",
-          services_p: "Public customers can review services here. Internal invoices, technician signatures, and evidence uploads remain in the protected company portal.",
+          services_h2: "Residential, restaurant, and light commercial service",
+          services_p: "We serve homes, restaurants, and small businesses in Miami. We handle air conditioning, airflow, return ducts, kitchens, and ovens.",
           svc1_h: "Diagnostics and troubleshooting",
           svc1_p: "We identify cooling and airflow problems before proposing repairs.",
           svc1_t: "On-site analysis",
@@ -808,6 +957,11 @@
           svc6_h: "Invoice and email delivery",
           svc6_p: "Professional PDF invoice delivery with optional photo ZIP bundle.",
           svc6_t: "Digital workflow",
+          svc7_h: "Hot-side kitchen equipment",
+          svc7_p: "Service support for kitchen lines, ovens, and related hot-work systems in restaurants and homes.",
+          svc7_t: "Kitchen and oven service",
+          trust_line1: "Homes • Restaurants • Local businesses",
+          trust_line2: "Fast response • Clean work • Clear communication",
           records_eyebrow: "Why customers trust us",
           records_h2: "Clear process, clear proof",
           proof1_h: "Signed Service Records",
@@ -852,11 +1006,11 @@
           call_btn: "Llamar 786 389 3330",
           portal_btn: "Portal de Trabajadores",
           hero_eyebrow: "Visitas de servicio en Miami con trabajo documentado",
-          hero_h1_line1: "Problemas de enfriamiento resueltos en campo.",
-          hero_h1_line2: "Trabajo claramente documentado.",
-          hero_p: "Electroclima Pro Services apoya a propietarios, administradores y pequenos negocios con diagnostico HVAC, correccion de flujo de aire, mejoras de retorno y registros de servicio respaldados por facturas.",
+          hero_h1_line1: "Servicio HVAC y equipos de cocina",
+          hero_h1_line2: "para hogares y restaurantes.",
+          hero_p: "Enfriamiento y trabajo en calor, bien hecho y bien documentado. Cada visita incluye un resumen claro del trabajo realizado y entrega digital cuando se necesita.",
           hero_cta1: "Solicitar Servicio",
-          hero_cta2: "Escribenos",
+          hero_cta2: "Hablar por WhatsApp",
           stat1: "Respuesta de emergencia",
           stat2: "Registros firmados",
           stat3_value: "Local",
@@ -867,8 +1021,8 @@
           sheet_focus_p: "Diagnostico de A/C, mejoras de flujo de aire, correcciones de ductos de retorno y documentacion completa por visita.",
           sheet_desc: "Descripcion del Trabajo Realizado",
           services_eyebrow: "Que hacemos",
-          services_h2: "Servicio HVAC residencial y comercial liviano",
-          services_p: "Los clientes publicos pueden revisar nuestros servicios aqui. Las facturas internas, firmas de tecnicos y evidencia cargada permanecen en el portal protegido de la empresa.",
+          services_h2: "Servicio residencial, para restaurantes y comercial liviano",
+          services_p: "Atendemos hogares, restaurantes y pequenos negocios en Miami. Trabajamos aire acondicionado, flujo de aire, ductos de retorno, cocinas y hornos.",
           svc1_h: "Diagnostico y solucion de fallas",
           svc1_p: "Identificamos problemas de enfriamiento y flujo de aire antes de proponer reparaciones.",
           svc1_t: "Analisis en sitio",
@@ -887,6 +1041,11 @@
           svc6_h: "Entrega de factura y correo",
           svc6_p: "Entrega profesional de factura PDF con opcion de ZIP de fotos.",
           svc6_t: "Flujo digital",
+          svc7_h: "Equipos de cocina de calor",
+          svc7_p: "Soporte de servicio para lineas de cocina, hornos y sistemas de trabajo en calor en restaurantes y hogares.",
+          svc7_t: "Servicio de cocina y hornos",
+          trust_line1: "Hogares • Restaurantes • Negocios locales",
+          trust_line2: "Respuesta rapida • Trabajo limpio • Comunicacion clara",
           records_eyebrow: "Por que los clientes confian",
           records_h2: "Proceso claro, evidencia clara",
           proof1_h: "Registros de servicio firmados",
@@ -946,12 +1105,12 @@
           enBtn.classList.toggle("active", lang === "en");
           esBtn.classList.toggle("active", lang === "es");
         }
-        localStorage.setItem("public_lang", lang);
+        localStorage.setItem("site_lang", lang);
       }
 
       (function initLang() {
-        const saved = localStorage.getItem("public_lang");
-        setLang(saved === "es" ? "es" : "en");
+        const saved = localStorage.getItem("site_lang");
+        setLang(saved === "en" ? "en" : "es");
       })();
     </script>
   </body>

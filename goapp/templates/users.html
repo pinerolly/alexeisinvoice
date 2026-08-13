@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Workers - Electroclima Pro Services, LLC</title>
+    <title>Trabajadores - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -248,16 +248,16 @@
 
     <div class="page">
       <div class="panel">
-        <h1>Workers</h1>
+        <h1>Trabajadores</h1>
         {{if .Error}}
         <div class="error">{{.Error}}</div>
         {{end}}
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Signature</th>
+              <th>Nombre</th>
+              <th>Rol</th>
+              <th>Firma</th>
               {{if .IsAdmin}}
               <th></th>
               {{end}}
@@ -286,26 +286,26 @@
                 {{if .Signature}} {{if eq .Username $.Username}}
                 <a
                   href="/account/signature"
-                  title="Click to renew your signature"
+                  title="Haz clic para renovar tu firma"
                 >
                   <img
                     class="sig-thumb sig-thumb-editable"
                     src="{{signatureURL .Signature}}"
-                    alt="{{.Username}}'s signature"
+                    alt="Firma de {{.Username}}"
                   />
                 </a>
                 {{else}}
                 <img
                   class="sig-thumb"
                   src="{{signatureURL .Signature}}"
-                  alt="{{.Username}}'s signature"
+                  alt="Firma de {{.Username}}"
                 />
                 {{end}} {{else}} {{if eq .Username $.Username}}
                 <a class="sig-thumb-empty" href="/account/signature"
-                  >Sign now</a
+                  >Firmar ahora</a
                 >
                 {{else}}
-                <span class="sig-thumb-empty">Not signed yet</span>
+                <span class="sig-thumb-empty">Aún sin firmar</span>
                 {{end}} {{end}}
               </td>
               {{if $.IsAdmin}}
@@ -314,14 +314,14 @@
                   <form
                     method="POST"
                     action="/admin/users/{{.ID}}/delete"
-                    onsubmit="return confirm('Delete worker {{.Username}}?');"
+                    onsubmit="return confirm('¿Eliminar al trabajador {{.Username}}?');"
                   >
                     <input
                       type="hidden"
                       name="csrf_token"
                       value="{{$.CSRFToken}}"
                     />
-                    <button type="submit" class="delete-btn">Delete</button>
+                    <button type="submit" class="delete-btn">Eliminar</button>
                   </form>
                 </div>
               </td>
@@ -334,33 +334,33 @@
 
       {{if .IsAdmin}}
       <div class="panel">
-        <h2>Add/Update Worker</h2>
+        <h2>Agregar/Actualizar Trabajador</h2>
         <form class="add-form" method="POST" action="/admin/users">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <div class="field-stack">
             <div class="name-row">
               <div>
-                <label for="first_name">Name</label>
+                <label for="first_name">Nombre</label>
                 <input type="text" id="first_name" name="first_name" />
               </div>
               <div>
-                <label for="last_name">Lastname</label>
+                <label for="last_name">Apellido</label>
                 <input type="text" id="last_name" name="last_name" />
               </div>
             </div>
             <div class="name-row">
               <div>
-                <label for="username">Username</label>
+                <label for="username">Usuario</label>
                 <input type="text" id="username" name="username" required />
               </div>
               <div>
-                <label for="password">New Password</label>
+                <label for="password">Nueva Contraseña</label>
                 <div class="password-wrap">
                   <input type="password" id="password" name="password" />
                   <button
                     type="button"
                     class="password-toggle"
-                    aria-label="Show password"
+                    aria-label="Mostrar contraseña"
                     aria-pressed="false"
                     onclick="togglePasswordVisibility(this)"
                   >
@@ -383,13 +383,13 @@
             </div>
           </div>
           <div>
-            <label for="role">Role</label>
+            <label for="role">Rol</label>
             <select id="role" name="role">
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="user">Usuario</option>
+              <option value="admin">Administrador</option>
             </select>
           </div>
-          <button type="submit">Save</button>
+          <button type="submit">Guardar</button>
         </form>
       </div>
       {{end}}
@@ -403,7 +403,7 @@
         btn.setAttribute("aria-pressed", String(!showing));
         btn.setAttribute(
           "aria-label",
-          showing ? "Show password" : "Hide password",
+          showing ? "Mostrar contraseña" : "Ocultar contraseña",
         );
       }
 

@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Import Invoice Photo - Electroclima Pro Services, LLC</title>
+    <title>Importar Foto de Factura - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -151,31 +151,32 @@
     {{template "nav" .}}
     <div class="wrap">
       <div class="card">
-        <h1>Import Invoice From Photo</h1>
+        <h1>Importar Factura Desde Foto</h1>
         <p class="lead">
-          Upload a picture taken by your phone camera or selected from your photo
-          library. AI will extract fields and pre-fill your invoice editor.
+          Sube una foto tomada con la cámara de tu teléfono o seleccionada de tu
+          galería. La IA extraerá los campos y rellenará previamente tu editor de
+          facturas.
         </p>
 
         {{if not .ModelConfigured}}
         <div class="banner warn">
-          AI import is not configured yet. Set OPENAI_API_KEY in your
-          environment/secrets file and restart the app container.
+          La importación con IA aún no está configurada. Configura OPENAI_API_KEY
+          en tu archivo de entorno/secretos y reinicia el contenedor de la app.
         </div>
         {{else}}
-        <div class="banner ok">AI model configured: {{.Model}}</div>
+        <div class="banner ok">Modelo de IA configurado: {{.Model}}</div>
         {{end}} {{if .Error}}
         <div class="banner error">{{.Error}}</div>
         {{end}} {{if .Success}}
         <div class="banner ok">
-          Photo imported. Review all values in the editor before printing.
+          Foto importada. Revisa todos los valores en el editor antes de imprimir.
         </div>
         {{end}}
 
         <form method="POST" action="/app/import" enctype="multipart/form-data" id="importForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <div class="field">
-            <label for="invoicePhoto">Invoice Photo</label>
+            <label for="invoicePhoto">Foto de la Factura</label>
             <input
               id="invoicePhoto"
               name="invoicePhoto"
@@ -184,19 +185,19 @@
               required
             />
             <div class="hint">
-              Recommended: clear photo, no glare, all invoice text visible.
+              Recomendado: foto clara, sin reflejos, con todo el texto de la factura visible.
             </div>
           </div>
 
           <div class="preview">
-            <img id="previewImg" alt="Invoice photo preview" />
+            <img id="previewImg" alt="Vista previa de la foto de la factura" />
           </div>
 
           <div class="actions">
             <button type="submit" class="primary" id="importBtn">
-              Extract And Fill Invoice
+              Extraer Y Rellenar Factura
             </button>
-            <a href="/app" class="link-btn secondary">Back To Editor</a>
+            <a href="/app" class="link-btn secondary">Volver Al Editor</a>
           </div>
           <div class="status" id="statusMsg"></div>
         </form>
@@ -228,8 +229,8 @@
 
         form.addEventListener("submit", () => {
           btn.disabled = true;
-          btn.textContent = "Extracting...";
-          statusMsg.textContent = "AI is reading the invoice photo and filling your draft.";
+          btn.textContent = "Extrayendo...";
+          statusMsg.textContent = "La IA está leyendo la foto de la factura y rellenando tu borrador.";
         });
       })();
     </script>

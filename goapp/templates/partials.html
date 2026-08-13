@@ -53,6 +53,32 @@
     font-weight: 600;
     cursor: pointer;
   }
+  .lang-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    padding: 3px;
+    margin-right: 4px;
+  }
+  .lang-switch button {
+    border: none;
+    background: transparent;
+    color: #dfeaf3;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .lang-switch button.active {
+    background: #fff;
+    color: #1c3d5a;
+  }
   @media (max-width: 600px) {
     .topnav {
       flex-wrap: wrap;
@@ -74,19 +100,53 @@
   <span class="brand">ELECTROCLIMA PRO SERVICES</span>
   {{if .DisplayName}}<span class="current-user">{{.DisplayName}}</span>{{end}}
   <div class="links">
-    <a href="/">Public Site</a>
-    <a href="/app">New Invoice</a>
-    <a href="/app/import">Import Photo</a>
-    <a href="/clients">Invoices</a>
-    <a href="/admin/service-requests">Requests</a>
-    <a href="/admin/users">Workers</a>
+    <a href="/">Sitio Público</a>
+    <a href="/app">Nueva Factura</a>
+    <a href="/app/import">Importar Foto</a>
+    <a href="/clients">Facturas</a>
+    <a href="/admin/service-requests">Solicitudes</a>
+    <a href="/admin/users">Trabajadores</a>
     {{if .IsAdmin}}
-    <a href="/admin/bank">Bank</a>
+    <a href="/admin/bank">Banco</a>
     {{end}}
+    <div class="lang-switch" aria-label="Selector de idioma">
+      <button type="button" data-lang-toggle="es" class="active">ES</button>
+      <button type="button" data-lang-toggle="en">EN</button>
+    </div>
     <form method="POST" action="/logout">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-      <button type="submit" class="logout-btn">Log out</button>
+      <button type="submit" class="logout-btn">Cerrar sesión</button>
     </form>
   </div>
 </div>
+<script>
+  (function () {
+    const STORAGE_KEY = "site_lang";
+
+    function applyLanguage(lang) {
+      const selected = lang === "en" ? "en" : "es";
+      document.documentElement.lang = selected;
+      localStorage.setItem(STORAGE_KEY, selected);
+
+      document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
+        const isActive = button.getAttribute("data-lang-toggle") === selected;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const savedLang = localStorage.getItem(STORAGE_KEY);
+      const initialLang = savedLang === "en" ? "en" : "es";
+
+      applyLanguage(initialLang);
+
+      document.querySelectorAll("[data-lang-toggle]").forEach((button) => {
+        button.addEventListener("click", function () {
+          applyLanguage(button.getAttribute("data-lang-toggle"));
+        });
+      });
+    });
+  })();
+</script>
 {{end}}

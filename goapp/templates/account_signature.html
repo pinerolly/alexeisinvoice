@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>My Signature - Electroclima Pro Services, LLC</title>
+    <title>Mi Firma - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -122,16 +122,16 @@
     {{template "nav" .}}
     <div class="page">
       <div class="panel">
-        <a class="exit-btn" href="/clients" title="Close">&times;</a>
-        <h1>My Signature</h1>
+        <a class="exit-btn" href="/clients" title="Cerrar">&times;</a>
+        <h1>Mi Firma</h1>
         {{if .Missing}}
         <div class="notice">
-          You need to save a signature before you can create or view invoices.
+          Debes guardar una firma antes de poder crear o ver facturas.
         </div>
         {{end}}
         <p class="hint">
-          Draw your signature below with a mouse, stylus, or finger. It will be
-          stamped on every invoice you finalize, under your username
+          Dibuja tu firma abajo con el mouse, un lápiz óptico o el dedo. Se
+          estampará en cada factura que finalices, debajo de tu usuario
           ({{.Username}}).
         </p>
         <form method="POST" action="/account/signature" id="sigForm">
@@ -142,9 +142,9 @@
           </div>
           <div class="btn-row">
             <button type="button" class="btn-secondary" onclick="clearPad()">
-              Clear
+              Borrar
             </button>
-            <button type="submit" class="btn-primary">Save Signature</button>
+            <button type="submit" class="btn-primary">Guardar Firma</button>
           </div>
         </form>
       </div>
@@ -205,7 +205,7 @@
       document.getElementById("sigForm").addEventListener("submit", (e) => {
         if (!hasStroke) {
           e.preventDefault();
-          alert("Please sign before saving.");
+          alert("Por favor firma antes de guardar.");
           return;
         }
         document.getElementById("signatureInput").value =

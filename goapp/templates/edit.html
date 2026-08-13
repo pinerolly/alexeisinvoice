@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Invoice Editor - Electroclima Pro Services, LLC</title>
+    <title>Editor de Facturas - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -434,21 +434,21 @@
     <div class="app">
       {{if gt .CurrentInvoiceID 0}}
       <div class="editing-banner">
-        Editing existing invoice #{{.CurrentInvoiceID}} for {{.ClientName}}.
-        Printing will update this record. <a href="/clients">Back to clients</a>
+        Editando la factura existente #{{.CurrentInvoiceID}} de {{.ClientName}}.
+        Al imprimir se actualizará este registro. <a href="/clients">Volver a clientes</a>
       </div>
       {{end}}
       {{if .ImportNotice}}
       <div class="import-banner">{{.ImportNotice}}</div>
       {{end}}
       <div class="form-panel">
-        <h2>Edit Invoice</h2>
+        <h2>Editar Factura</h2>
         <a class="import-link" href="/app/import"
-          >Import invoice fields from phone photo</a
+          >Importar campos de la factura desde una foto del teléfono</a
         >
         <form method="POST" action="/update" id="invoiceForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
-          <label for="invDate">Invoice Date</label>
+          <label for="invDate">Fecha de la Factura</label>
           <input
             type="date"
             id="invDate"
@@ -456,49 +456,49 @@
             value="{{.InvoiceDate}}"
           />
 
-          <label for="clientName">Client Name</label>
+          <label for="clientName">Nombre del Cliente</label>
           <input
             type="text"
             id="clientName"
             name="clientName"
             value="{{.ClientName}}"
-            placeholder="e.g. John Smith"
+            placeholder="ej. Juan Pérez"
           />
 
-          <label for="phone">Phone</label>
+          <label for="phone">Teléfono</label>
           <input
             type="text"
             id="phone"
             name="phone"
             value="{{.Phone}}"
-            placeholder="e.g. 786 389 3330"
+            placeholder="ej. 786 389 3330"
           />
 
-          <label for="email">Email</label>
+          <label for="email">Correo</label>
           <input
             type="text"
             id="email"
             name="email"
             value="{{.Email}}"
-            placeholder="e.g. client@example.com"
+            placeholder="ej. cliente@ejemplo.com"
           />
 
-          <label for="location">Location</label>
+          <label for="location">Ubicación</label>
           <input
             type="text"
             id="location"
             name="location"
             value="{{.Location}}"
-            placeholder="e.g. 7820 NE 1st Ave"
+            placeholder="ej. 7820 NE 1st Ave"
           />
 
-          <label for="timeIn">Time In</label>
+          <label for="timeIn">Hora de Entrada</label>
           <input type="time" id="timeIn" name="timeIn" value="{{.TimeIn}}" />
 
-          <label for="timeOut">Time Out</label>
+          <label for="timeOut">Hora de Salida</label>
           <input type="time" id="timeOut" name="timeOut" value="{{.TimeOut}}" />
 
-          <label>Jobs / Line Items</label>
+          <label>Trabajos / Conceptos</label>
           <div id="jobsList">
             {{range .Jobs}}
             <div class="job-item">
@@ -519,10 +519,10 @@
                 <span class="job-summary-price"></span>
               </div>
               <div class="job-fields">
-                <label>Description</label>
+                <label>Descripción</label>
                 <!-- prettier-ignore -->
-                <textarea name="description" placeholder="Describe the work performed...">{{.Description}}</textarea>
-                <label>Price ($)</label>
+                <textarea name="description" placeholder="Describe el trabajo realizado...">{{.Description}}</textarea>
+                <label>Precio ($)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -554,12 +554,12 @@
                 <span class="job-summary-price"></span>
               </div>
               <div class="job-fields">
-                <label>Description</label>
+                <label>Descripción</label>
                 <textarea
                   name="description"
-                  placeholder="Describe the work performed..."
+                  placeholder="Describe el trabajo realizado..."
                 ></textarea>
-                <label>Price ($)</label>
+                <label>Precio ($)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -572,12 +572,12 @@
           </template>
 
           <button type="button" class="add-job-btn" onclick="addJob()">
-            + Add Job
+            + Agregar Trabajo
           </button>
 
           <div class="sidebar-sig">
             <label
-              >Customer Signature{{if .ClientName}}
+              >Firma del Cliente{{if .ClientName}}
               ({{.ClientName}}){{end}}</label
             >
             <div class="sig-pad-wrap">
@@ -589,7 +589,7 @@
               class="sig-clear"
               onclick="clearCustomerSig()"
             >
-              Clear
+              Borrar
             </button>
             <input
               type="hidden"
@@ -601,7 +601,7 @@
           </div>
 
           <button type="submit" name="action" value="print" class="btn-print">
-            Save / Print / Download / Email
+            Guardar / Imprimir / Descargar / Enviar
           </button>
         </form>
 
@@ -609,7 +609,7 @@
           method="POST"
           action="/reset"
           onsubmit="
-            return confirm('Clear the current invoice and start a new one?');
+            return confirm('¿Borrar la factura actual y empezar una nueva?');
           "
         >
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
@@ -618,7 +618,7 @@
             class="btn-secondary"
             style="width: 100%; margin-top: 10px"
           >
-            Clear / New Invoice
+            Borrar / Nueva Factura
           </button>
         </form>
       </div>
@@ -634,37 +634,37 @@
             </div>
           </div>
           <div class="invoice-title">
-            <h1>INVOICE</h1>
+            <h1>FACTURA</h1>
             {{if gt .CurrentInvoiceID 0}}
-            <div class="invoice-no">Invoice #{{.CurrentInvoiceID}}</div>
+            <div class="invoice-no">Factura #{{.CurrentInvoiceID}}</div>
             {{end}}
-            <div class="invoice-no">Date: {{formatDate .InvoiceDate}}</div>
+            <div class="invoice-no">Fecha: {{formatDate .InvoiceDate}}</div>
           </div>
         </div>
 
         <div class="meta-grid">
           <div class="meta-box">
-            <h3>Client</h3>
+            <h3>Cliente</h3>
             <p>{{if .ClientName}}{{.ClientName}}{{else}}&nbsp;{{end}}</p>
             {{if .Phone}}
-            <p>Phone: {{.Phone}}</p>
+            <p>Teléfono: {{.Phone}}</p>
             {{end}} {{if .Email}}
-            <p>Email: {{.Email}}</p>
+            <p>Correo: {{.Email}}</p>
             {{end}}
-            <p>Location: {{.Location}}</p>
+            <p>Ubicación: {{.Location}}</p>
           </div>
           <div class="meta-box">
-            <h3>Service Details</h3>
-            <p>Time In: {{formatTime .TimeIn}}</p>
-            <p>Time Out: {{formatTime .TimeOut}}</p>
+            <h3>Detalles del Servicio</h3>
+            <p>Hora de Entrada: {{formatTime .TimeIn}}</p>
+            <p>Hora de Salida: {{formatTime .TimeOut}}</p>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th style="width: 80%">Description of Work Performed</th>
-              <th style="width: 20%; text-align: right">Price</th>
+              <th style="width: 80%">Descripción del Trabajo Realizado</th>
+              <th style="width: 20%; text-align: right">Precio</th>
             </tr>
           </thead>
           <tbody>
@@ -680,7 +680,7 @@
         <div class="totals">
           <table>
             <tr class="grand-total">
-              <td>Total Amount Due</td>
+              <td>Monto Total a Pagar</td>
               <td style="text-align: right">{{money (total .Jobs)}}</td>
             </tr>
           </table>
@@ -692,19 +692,19 @@
             <img
               class="sig-preview"
               src="{{signatureURL .TechnicianSignaturePreview}}"
-              alt="Technician signature"
+              alt="Firma del técnico"
             />
             {{else}}
             <div class="sig-line"></div>
             {{end}}
-            <div class="sig-label">Technician Signature</div>
+            <div class="sig-label">Firma del Técnico</div>
           </div>
           <div class="sig-block">
             <img
               id="customerSigPreviewImg"
               class="sig-preview"
               src="{{signatureURL .CustomerSignature}}"
-              alt="Customer signature"
+              alt="Firma del cliente"
               {{if
               not
               .CustomerSignature}}style="display:none"
@@ -718,13 +718,13 @@
               {{end}}
             ></div>
             <div class="sig-label">
-              Customer Signature{{if .ClientName}} ({{.ClientName}}){{end}}
+              Firma del Cliente{{if .ClientName}} ({{.ClientName}}){{end}}
             </div>
           </div>
         </div>
 
         <div class="footer-note">
-          Thank you for your business! &nbsp;|&nbsp; Electroclima Pro Services,
+          ¡Gracias por su preferencia! &nbsp;|&nbsp; Electroclima Pro Services,
           LLC &nbsp;|&nbsp; 786 389 3330
         </div>
       </div>
@@ -806,7 +806,7 @@
         // "Renew Signature" only shows once a signature is already saved, to make
         // clear that clicking it wipes the existing one so the customer can sign again.
         function updateClearBtnLabel() {
-          clearBtn.textContent = hasStroke ? "Renew Signature" : "Clear";
+          clearBtn.textContent = hasStroke ? "Renovar Firma" : "Borrar";
         }
         updateClearBtnLabel();
 
@@ -889,7 +889,7 @@
             if (action === "print") {
               if (!hasStroke) {
                 e.preventDefault();
-                alert("Please have the customer sign before printing/saving.");
+                alert("Por favor pide al cliente que firme antes de imprimir/guardar.");
                 return;
               }
               input.value = canvas.toDataURL("image/png");

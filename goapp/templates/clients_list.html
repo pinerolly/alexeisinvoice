@@ -1,9 +1,9 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Clients - Electroclima Pro Services, LLC</title>
+    <title>Clientes - Electroclima Pro Services, LLC</title>
     <style>
       :root {
         --primary: #1c3d5a;
@@ -131,24 +131,24 @@
 
     <div class="page">
       <div class="panel">
-        <h1>Clients</h1>
+        <h1>Clientes</h1>
         <form class="search-form" method="GET" action="/clients">
           <input
             type="text"
             name="q"
             value="{{.Search}}"
-            placeholder="Search by name, phone, or email..."
+            placeholder="Buscar por nombre, teléfono o correo..."
           />
-          <button type="submit">Search</button>
+          <button type="submit">Buscar</button>
         </form>
 
         {{if .Clients}}
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th style="text-align: center">Debt</th>
-              <th style="text-align: right">Total Debt</th>
+              <th>Nombre</th>
+              <th style="text-align: center">Deudas</th>
+              <th style="text-align: right">Deuda Total</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +164,7 @@
           </tbody>
         </table>
         {{else}}
-        <div class="empty">No clients found.</div>
+        <div class="empty">No se encontraron clientes.</div>
         {{end}}
       </div>
     </div>
