@@ -2,7 +2,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base32"
 	"errors"
 	"fmt"
 	"regexp"
@@ -86,6 +88,13 @@ CREATE TABLE IF NOT EXISTS service_requests (
 	service_type TEXT NOT NULL DEFAULT '',
 	message TEXT NOT NULL DEFAULT '',
 	status TEXT NOT NULL DEFAULT 'new',
+	assigned_username TEXT NOT NULL DEFAULT '',
+	progress_now TEXT NOT NULL DEFAULT '',
+	progress_done TEXT NOT NULL DEFAULT '',
+	progress_next TEXT NOT NULL DEFAULT '',
+	expected_date TEXT NOT NULL DEFAULT '',
+	tracking_code TEXT NOT NULL DEFAULT '',
+	updated_at TEXT NOT NULL DEFAULT '',
 	created_at TEXT NOT NULL
 );
 `
@@ -229,6 +238,69 @@ func migrateSchema() error {
 			return err
 		}
 	}
+
+	srows, err := db.Query(`PRAGMA table_info(service_requests)`)
+	if err != nil {
+		return err
+	}
+	serviceCols := map[string]bool{}
+	for srows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := srows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			srows.Close()
+			return err
+		}
+		serviceCols[name] = true
+	}
+	if err := srows.Err(); err != nil {
+		return err
+	}
+	srows.Close()
+	if !serviceCols["assigned_username"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN assigned_username TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["progress_now"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN progress_now TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["progress_done"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN progress_done TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["progress_next"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN progress_next TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["expected_date"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN expected_date TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["tracking_code"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN tracking_code TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if !serviceCols["updated_at"] {
+		if _, err := db.Exec(`ALTER TABLE service_requests ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	if err := backfillServiceRequestTrackingCodes(); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_service_requests_tracking_code ON service_requests(tracking_code)`); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -258,23 +330,99 @@ type ServiceRequest struct {
 	ServiceType string
 	Message     string
 	Status      string
+	AssignedTo  string
+	ProgressNow string
+	ProgressDone string
+	ProgressNext string
+	ExpectedDate string
+	TrackingCode string
+	UpdatedAt   string
 	CreatedAt   string
 }
 
-func createServiceRequest(name, phone, email, serviceType, message string) (int64, error) {
+func generateTrackingCode() (string, error) {
+	buf := make([]byte, 6)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	code := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf)
+	code = strings.TrimSpace(code)
+	if len(code) > 10 {
+		code = code[:10]
+	}
+	return "SR-" + code, nil
+}
+
+func backfillServiceRequestTrackingCodes() error {
+	rows, err := db.Query(`SELECT id FROM service_requests WHERE tracking_code = ''`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		code, err := generateTrackingCode()
+		if err != nil {
+			return err
+		}
+		if _, err := db.Exec(`UPDATE service_requests SET tracking_code = ?, updated_at = COALESCE(NULLIF(updated_at, ''), created_at) WHERE id = ?`, code, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createServiceRequest(name, phone, email, serviceType, message string) (int64, string, error) {
+	code := ""
+	for i := 0; i < 5; i++ {
+		candidate, err := generateTrackingCode()
+		if err != nil {
+			return 0, "", err
+		}
+		var exists int
+		err = db.QueryRow(`SELECT COUNT(*) FROM service_requests WHERE tracking_code = ?`, candidate).Scan(&exists)
+		if err != nil {
+			return 0, "", err
+		}
+		if exists == 0 {
+			code = candidate
+			break
+		}
+	}
+	if code == "" {
+		return 0, "", fmt.Errorf("could not generate unique tracking code")
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := db.Exec(
-		`INSERT INTO service_requests (name, phone, email, service_type, message, status, created_at) VALUES (?, ?, ?, ?, ?, 'new', ?)`,
+		`INSERT INTO service_requests (name, phone, email, service_type, message, status, tracking_code, updated_at, created_at) VALUES (?, ?, ?, ?, ?, 'new', ?, ?, ?)`,
 		strings.TrimSpace(name),
 		normalizePhone(phone),
 		normalizeEmail(email),
 		strings.TrimSpace(serviceType),
 		strings.TrimSpace(message),
-		time.Now().UTC().Format(time.RFC3339),
+		code,
+		now,
+		now,
 	)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return res.LastInsertId()
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, "", err
+	}
+	return id, code, nil
 }
 
 func listServiceRequests(limit int) ([]ServiceRequest, error) {
@@ -282,7 +430,9 @@ func listServiceRequests(limit int) ([]ServiceRequest, error) {
 		limit = 100
 	}
 	rows, err := db.Query(
-		`SELECT id, name, phone, email, service_type, message, status, created_at
+		`SELECT id, name, phone, email, service_type, message, status,
+		        assigned_username, progress_now, progress_done, progress_next,
+		        expected_date, tracking_code, updated_at, created_at
 		 FROM service_requests
 		 ORDER BY id DESC
 		 LIMIT ?`,
@@ -296,12 +446,74 @@ func listServiceRequests(limit int) ([]ServiceRequest, error) {
 	var out []ServiceRequest
 	for rows.Next() {
 		var r ServiceRequest
-		if err := rows.Scan(&r.ID, &r.Name, &r.Phone, &r.Email, &r.ServiceType, &r.Message, &r.Status, &r.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&r.ID,
+			&r.Name,
+			&r.Phone,
+			&r.Email,
+			&r.ServiceType,
+			&r.Message,
+			&r.Status,
+			&r.AssignedTo,
+			&r.ProgressNow,
+			&r.ProgressDone,
+			&r.ProgressNext,
+			&r.ExpectedDate,
+			&r.TrackingCode,
+			&r.UpdatedAt,
+			&r.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func getServiceRequestByTrackingCode(code string) (ServiceRequest, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	var r ServiceRequest
+	err := db.QueryRow(
+		`SELECT id, name, phone, email, service_type, message, status,
+		        assigned_username, progress_now, progress_done, progress_next,
+		        expected_date, tracking_code, updated_at, created_at
+		 FROM service_requests WHERE tracking_code = ?`,
+		code,
+	).Scan(
+		&r.ID,
+		&r.Name,
+		&r.Phone,
+		&r.Email,
+		&r.ServiceType,
+		&r.Message,
+		&r.Status,
+		&r.AssignedTo,
+		&r.ProgressNow,
+		&r.ProgressDone,
+		&r.ProgressNext,
+		&r.ExpectedDate,
+		&r.TrackingCode,
+		&r.UpdatedAt,
+		&r.CreatedAt,
+	)
+	return r, err
+}
+
+func updateServiceRequestWorkflow(id int64, assignedTo, status, progressNow, progressDone, progressNext, expectedDate string) error {
+	_, err := db.Exec(
+		`UPDATE service_requests
+		 SET assigned_username = ?, status = ?, progress_now = ?, progress_done = ?, progress_next = ?, expected_date = ?, updated_at = ?
+		 WHERE id = ?`,
+		strings.TrimSpace(assignedTo),
+		strings.TrimSpace(status),
+		strings.TrimSpace(progressNow),
+		strings.TrimSpace(progressDone),
+		strings.TrimSpace(progressNext),
+		strings.TrimSpace(expectedDate),
+		time.Now().UTC().Format(time.RFC3339),
+		id,
+	)
+	return err
 }
 
 // findOrCreateClient matches an existing client by phone, then email, then

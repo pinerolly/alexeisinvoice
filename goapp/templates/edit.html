@@ -370,17 +370,6 @@
         font-size: 14px;
         margin-bottom: -4px;
       }
-      .import-link {
-        display: inline-block;
-        margin-bottom: 12px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--accent);
-        text-decoration: none;
-      }
-      .import-link:hover {
-        text-decoration: underline;
-      }
       @media (max-width: 900px) {
         body {
           padding: 12px;
@@ -443,9 +432,6 @@
       {{end}}
       <div class="form-panel">
         <h2>Editar Factura</h2>
-        <a class="import-link" href="/app/import"
-          >Importar campos de la factura desde una foto del teléfono</a
-        >
         <form method="POST" action="/update" id="invoiceForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
           <label for="invDate">Fecha de la Factura</label>

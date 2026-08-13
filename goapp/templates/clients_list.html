@@ -108,6 +108,62 @@
         padding: 20px 0;
         text-align: center;
       }
+      .import-merge-card {
+        margin-top: 18px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--light-bg);
+        padding: 16px;
+      }
+      .import-banner {
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        font-size: 13px;
+      }
+      .import-banner.error {
+        background: #fdeaea;
+        border: 1px solid #f3b8b8;
+        color: #a22;
+      }
+      .import-banner.ok {
+        background: #e8f6ec;
+        border: 1px solid #b6e2c1;
+        color: #1a5d2d;
+      }
+      .import-merge-card h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        color: var(--primary);
+      }
+      .import-merge-card p {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #555;
+      }
+      .import-merge-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .import-merge-actions input[type="file"] {
+        flex: 1;
+        min-width: 230px;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+      }
+      .import-merge-actions button {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
       @media (max-width: 700px) {
         body {
           padding: 12px;
@@ -166,6 +222,34 @@
         {{else}}
         <div class="empty">No se encontraron clientes.</div>
         {{end}}
+
+        <div class="import-merge-card" id="invoice-import">
+          <h2>Importar Foto (integrado en Facturas)</h2>
+          <p>
+            Sube la foto una sola vez aquí, al final de la página de todas las
+            facturas por cliente.
+          </p>
+          {{if not .ModelConfigured}}
+          <div class="import-banner error">
+            La importación con IA aún no está configurada. Configura OPENAI_API_KEY en secrets/invoice.env y reinicia la app.
+          </div>
+          {{else}}
+          <div class="import-banner ok">Modelo de IA configurado: {{.Model}}</div>
+          {{end}}
+          {{if .ImportError}}
+          <div class="import-banner error">{{.ImportError}}</div>
+          {{end}}
+          {{if .Imported}}
+          <div class="import-banner ok">Foto importada. Revisa y ajusta los datos en la factura antes de imprimir.</div>
+          {{end}}
+          <form method="POST" action="/app/import" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+            <div class="import-merge-actions">
+              <input name="invoicePhoto" type="file" accept="image/*" required />
+              <button type="submit">Importar Foto</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </body>

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"net/smtp"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -102,4 +103,43 @@ func sendInvoiceEmailWithAttachments(to, cc, subject, body string, attachments [
 		toList = append(toList, strings.TrimSpace(cc))
 	}
 	return smtp.SendMail(addr, auth, cfg.from, toList, msg.Bytes())
+}
+
+func sendServiceRequestConfirmation(to, name, serviceType, trackingCode string) error {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_SITE_URL")), "/")
+	if baseURL == "" {
+		baseURL = "https://www.electroclimapro.us"
+	}
+	service := strings.TrimSpace(serviceType)
+	if service == "" {
+		service = "servicio general"
+	}
+	body := fmt.Sprintf(`Hola %s,
+
+Gracias por contactar a Electroclima Pro Services. Recibimos correctamente tu solicitud de %s.
+
+Nuestro equipo revisara tu solicitud y se comunicara contigo lo antes posible para confirmar los proximos pasos.
+
+Tu codigo de seguimiento es: %s
+Consulta el estado de tu servicio aqui: %s/track?code=%s
+
+Guarda este codigo para revisar el progreso del trabajo. Te mostrara lo que estamos haciendo, lo que terminamos y el proximo paso.
+
+Saludos,
+Electroclima Pro Services, LLC
+786 389 3330
+electroclimaprollc@gmail.com`,
+		name,
+		service,
+		trackingCode,
+		baseURL,
+		url.QueryEscape(trackingCode),
+	)
+	return sendInvoiceEmailWithAttachments(
+		to,
+		"",
+		"Solicitud de servicio recibida - Codigo "+trackingCode,
+		body,
+		nil,
+	)
 }

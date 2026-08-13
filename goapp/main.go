@@ -7,9 +7,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"embed"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -257,17 +259,6 @@ type EditPageView struct {
 	ImportNotice               string
 }
 
-type InvoiceImportPageView struct {
-	CSRFToken      string
-	IsAdmin        bool
-	Username       string
-	DisplayName    string
-	Error          string
-	Success        bool
-	Model          string
-	ModelConfigured bool
-}
-
 type AIExtractedLineItem struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
@@ -290,6 +281,7 @@ type PublicPageView struct {
 	Title          string
 	RequestSent    bool
 	RequestError   string
+	RequestTrack   string
 	RequestName    string
 	RequestPhone   string
 	RequestEmail   string
@@ -302,6 +294,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		Title:          "Electroclima Pro Services, LLC",
 		RequestSent:    r.URL.Query().Get("request") == "1",
 		RequestError:   r.URL.Query().Get("requesterror"),
+		RequestTrack:   r.URL.Query().Get("track"),
 		RequestName:    r.URL.Query().Get("name"),
 		RequestPhone:   r.URL.Query().Get("phone"),
 		RequestEmail:   r.URL.Query().Get("email"),
@@ -357,22 +350,38 @@ func serviceRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := createServiceRequest(name, phone, email, serviceType, message); err != nil {
+	_, trackingCode, err := createServiceRequest(name, phone, email, serviceType, message)
+	if err != nil {
 		q.Set("requesterror", "Could not save your request right now. Please try again.")
 		http.Redirect(w, r, "/?"+q.Encode()+"#contact", http.StatusSeeOther)
 		return
 	}
+	if email != "" {
+		if err := sendServiceRequestConfirmation(email, name, serviceType, trackingCode); err != nil {
+			log.Printf("service request confirmation email failed for %s: %v", email, err)
+		}
+	}
 
-	http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+	http.Redirect(w, r, "/?request=1&track="+url.QueryEscape(trackingCode)+"#contact", http.StatusSeeOther)
 }
 
 type ServiceRequestsPageView struct {
 	Title       string
 	Requests    []ServiceRequest
+	Workers     []User
+	Saved       bool
 	CSRFToken   string
 	IsAdmin     bool
 	Username    string
 	DisplayName string
+}
+
+var validRequestWorkflowStatuses = map[string]bool{
+	"new":         true,
+	"assigned":    true,
+	"in_progress": true,
+	"done":        true,
+	"on_hold":     true,
 }
 
 func serviceRequestsHandler(w http.ResponseWriter, r *http.Request) {
@@ -381,15 +390,94 @@ func serviceRequestsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	users, err := listUsers()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	view := ServiceRequestsPageView{
 		Title:       "Service Requests",
 		Requests:    reqs,
+		Workers:     users,
+		Saved:       r.URL.Query().Get("saved") == "1",
 		CSRFToken:   currentCSRFToken(r),
 		IsAdmin:     isAdmin(r),
 		Username:    currentUsername(r),
 		DisplayName: currentDisplayName(r),
 	}
 	if err := mustTemplate("service_requests.html").Execute(w, view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func serviceRequestAssignHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	status := strings.TrimSpace(r.FormValue("status"))
+	if !validRequestWorkflowStatuses[status] {
+		status = "new"
+	}
+	assigned := strings.TrimSpace(r.FormValue("assigned_username"))
+	progressNow := strings.TrimSpace(r.FormValue("progress_now"))
+	progressDone := strings.TrimSpace(r.FormValue("progress_done"))
+	progressNext := strings.TrimSpace(r.FormValue("progress_next"))
+	expectedDate := strings.TrimSpace(r.FormValue("expected_date"))
+
+	if err := updateServiceRequestWorkflow(id, assigned, status, progressNow, progressDone, progressNext, expectedDate); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/service-requests?saved=1", http.StatusSeeOther)
+}
+
+type WorkTrackView struct {
+	Title        string
+	Code         string
+	Error        string
+	Found        bool
+	Request      ServiceRequest
+	AssigneeName string
+}
+
+func publicWorkTrackHandler(w http.ResponseWriter, r *http.Request) {
+	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("code")))
+	view := WorkTrackView{
+		Title: "Seguimiento de trabajo",
+		Code:  code,
+	}
+	if code == "" {
+		if err := mustTemplate("work_track.html").Execute(w, view); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	req, err := getServiceRequestByTrackingCode(code)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			view.Error = "No encontramos ese código. Revisa e intenta de nuevo."
+		} else {
+			view.Error = "No pudimos cargar el seguimiento ahora."
+		}
+		if err := mustTemplate("work_track.html").Execute(w, view); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	view.Found = true
+	view.Request = req
+	if req.AssignedTo != "" {
+		u, err := getUserByUsername(req.AssignedTo)
+		if err == nil {
+			view.AssigneeName = u.FullName()
+		} else {
+			view.AssigneeName = req.AssignedTo
+		}
+	}
+	if err := mustTemplate("work_track.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -423,62 +511,50 @@ func aiModelName() string {
 	return "gpt-4.1-mini"
 }
 
-func invoiceImportPageHandler(w http.ResponseWriter, r *http.Request) {
-	view := InvoiceImportPageView{
-		CSRFToken:       currentCSRFToken(r),
-		IsAdmin:         isAdmin(r),
-		Username:        currentUsername(r),
-		DisplayName:     currentDisplayName(r),
-		Error:           r.URL.Query().Get("error"),
-		Success:         r.URL.Query().Get("success") == "1",
-		Model:           aiModelName(),
-		ModelConfigured: strings.TrimSpace(os.Getenv("OPENAI_API_KEY")) != "",
-	}
-	if err := mustTemplate("invoice_import.html").Execute(w, view); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func invoiceImportSubmitHandler(w http.ResponseWriter, r *http.Request) {
+	redirectErr := func(msg string) {
+		http.Redirect(w, r, "/clients?importerror="+url.QueryEscape(msg)+"#invoice-import", http.StatusSeeOther)
+	}
+
 	if err := r.ParseMultipartForm(maxInvoiceImportImageBytes); err != nil {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not read uploaded image. Please try another file."), http.StatusSeeOther)
+		redirectErr("Could not read uploaded image. Please try another file.")
 		return
 	}
 
 	photo, _, err := r.FormFile("invoicePhoto")
 	if err != nil {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Please choose an invoice photo first."), http.StatusSeeOther)
+		redirectErr("Please choose an invoice photo first.")
 		return
 	}
 	defer photo.Close()
 
 	raw, err := io.ReadAll(io.LimitReader(photo, maxInvoiceImportImageBytes+1))
 	if err != nil {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not read image bytes."), http.StatusSeeOther)
+		redirectErr("Could not read image bytes.")
 		return
 	}
 	if len(raw) == 0 {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("The selected file is empty."), http.StatusSeeOther)
+		redirectErr("The selected file is empty.")
 		return
 	}
 	if len(raw) > maxInvoiceImportImageBytes {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Image is too large. Max size is 10MB."), http.StatusSeeOther)
+		redirectErr("Image is too large. Max size is 10MB.")
 		return
 	}
 
 	contentType := http.DetectContentType(raw)
 	if !strings.HasPrefix(contentType, "image/") {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Only image files are supported (JPG, PNG, HEIC screenshot exported as image)."), http.StatusSeeOther)
+		redirectErr("Only image files are supported (JPG, PNG, HEIC screenshot exported as image).")
 		return
 	}
 
 	extracted, err := extractInvoiceFromImage(raw, contentType)
 	if err != nil {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		redirectErr(err.Error())
 		return
 	}
 	if err := applyExtractedInvoiceToDraft(extracted); err != nil {
-		http.Redirect(w, r, "/app/import?error="+url.QueryEscape("Could not save imported invoice fields."), http.StatusSeeOther)
+		redirectErr("Could not save imported invoice fields.")
 		return
 	}
 	http.Redirect(w, r, "/app?imported=1", http.StatusSeeOther)
@@ -946,6 +1022,10 @@ func accountSignatureSaveHandler(w http.ResponseWriter, r *http.Request) {
 type ClientsListView struct {
 	Clients     []ClientSummary
 	Search      string
+	ImportError string
+	Imported    bool
+	Model       string
+	ModelConfigured bool
 	CSRFToken   string
 	IsAdmin     bool
 	Username    string
@@ -959,7 +1039,18 @@ func clientsListHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	view := ClientsListView{Clients: clients, Search: search, CSRFToken: currentCSRFToken(r), IsAdmin: isAdmin(r), Username: currentUsername(r), DisplayName: currentDisplayName(r)}
+	view := ClientsListView{
+		Clients:         clients,
+		Search:          search,
+		ImportError:     r.URL.Query().Get("importerror"),
+		Imported:        r.URL.Query().Get("imported") == "1",
+		Model:           aiModelName(),
+		ModelConfigured: strings.TrimSpace(os.Getenv("OPENAI_API_KEY")) != "",
+		CSRFToken:       currentCSRFToken(r),
+		IsAdmin:         isAdmin(r),
+		Username:        currentUsername(r),
+		DisplayName:     currentDisplayName(r),
+	}
 	if err := mustTemplate("clients_list.html").Execute(w, view); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -1675,15 +1766,16 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", publicHandler)
+	mux.HandleFunc("GET /track", publicWorkTrackHandler)
 	mux.HandleFunc("POST /service-request", serviceRequestHandler)
 	mux.HandleFunc("GET /login", loginHandler)
 	mux.HandleFunc("POST /login", loginHandler)
 	mux.HandleFunc("POST /logout", logoutHandler)
 
 	mux.HandleFunc("GET /app", requireAuth(requireSignature(indexHandler)))
-	mux.HandleFunc("GET /app/import", requireAuth(requireSignature(invoiceImportPageHandler)))
 	mux.HandleFunc("POST /app/import", requireAuth(requireCSRF(requireSignature(invoiceImportSubmitHandler))))
-	mux.HandleFunc("GET /admin/service-requests", requireAuth(serviceRequestsHandler))
+	mux.HandleFunc("GET /admin/service-requests", requireAdmin(serviceRequestsHandler))
+	mux.HandleFunc("POST /admin/service-requests/{id}/assign", requireAdmin(requireCSRF(serviceRequestAssignHandler)))
 	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
 	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))

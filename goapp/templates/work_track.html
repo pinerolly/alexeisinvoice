@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}} - Electroclima Pro Services</title>
+    <style>
+      :root {
+        --primary: #1c3d5a;
+        --accent: #2e86ab;
+        --light-bg: #f4f7f9;
+        --border: #d9e2e8;
+        --text: #2b2b2b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--text);
+        background: #e9edf0;
+        padding: 20px;
+      }
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
+      }
+      h1 {
+        margin: 0 0 10px;
+        color: var(--primary);
+        font-size: 26px;
+      }
+      .sub {
+        margin: 0 0 16px;
+        color: #5b6a77;
+      }
+      .lookup {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .lookup input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .lookup button {
+        background: var(--accent);
+        border: none;
+        color: #fff;
+        border-radius: 4px;
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .error {
+        background: #fdeaea;
+        border: 1px solid #f3b8b8;
+        color: #a22;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .box {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--light-bg);
+        padding: 14px;
+      }
+      .box h2 {
+        margin: 0 0 8px;
+        color: var(--primary);
+        font-size: 16px;
+      }
+      .box p {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      .meta {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #435260;
+      }
+      .status {
+        display: inline-block;
+        margin-top: 6px;
+        background: #e8f2f8;
+        border: 1px solid #c7dcea;
+        color: #275577;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      @media (max-width: 700px) {
+        body {
+          padding: 12px;
+        }
+        .card {
+          padding: 16px;
+        }
+        .lookup {
+          flex-direction: column;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Seguimiento de trabajo</h1>
+        <p class="sub">Ingresa tu código para ver en qué estamos trabajando ahora, qué terminamos y qué sigue mañana.</p>
+
+        <form class="lookup" method="GET" action="/track">
+          <input name="code" value="{{.Code}}" placeholder="SR-XXXXXXX" required />
+          <button type="submit">Ver estado</button>
+        </form>
+
+        {{if .Error}}
+        <div class="error">{{.Error}}</div>
+        {{end}}
+
+        {{if .Found}}
+        <div class="meta">
+          <strong>Código:</strong> {{.Request.TrackingCode}}<br />
+          <strong>Cliente:</strong> {{.Request.Name}}<br />
+          <strong>Servicio:</strong> {{if .Request.ServiceType}}{{.Request.ServiceType}}{{else}}General{{end}}<br />
+          <strong>Trabajador asignado:</strong> {{if .AssigneeName}}{{.AssigneeName}}{{else}}Pendiente de asignación{{end}}<br />
+          <strong>Fecha esperada siguiente paso:</strong> {{if .Request.ExpectedDate}}{{.Request.ExpectedDate}}{{else}}Por definir{{end}}<br />
+          <span class="status">{{.Request.Status}}</span>
+        </div>
+
+        <div class="grid" style="margin-top: 14px">
+          <div class="box">
+            <h2>Trabajo actual</h2>
+            <p>{{if .Request.ProgressNow}}{{.Request.ProgressNow}}{{else}}Aún sin actualización.{{end}}</p>
+          </div>
+          <div class="box">
+            <h2>Trabajo terminado</h2>
+            <p>{{if .Request.ProgressDone}}{{.Request.ProgressDone}}{{else}}Aún no hay tareas finalizadas reportadas.{{end}}</p>
+          </div>
+          <div class="box" style="grid-column: 1 / -1">
+            <h2>Próximo trabajo (mañana)</h2>
+            <p>{{if .Request.ProgressNext}}{{.Request.ProgressNext}}{{else}}No hay tareas próximas publicadas todavía.{{end}}</p>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </body>
+</html>

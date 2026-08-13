@@ -532,6 +532,71 @@
         color: var(--silver-dim);
         font-size: 12px;
       }
+      .track-inline {
+        margin-top: 14px;
+        border-top: 1px dashed var(--line);
+        padding-top: 12px;
+      }
+      .track-inline p {
+        margin: 0 0 8px;
+        color: var(--silver);
+        font-size: 13px;
+      }
+      .help-tip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: 6px;
+        border-radius: 50%;
+        border: 1px solid var(--steel-light);
+        color: var(--steel-light);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: help;
+        user-select: none;
+        vertical-align: middle;
+      }
+      .help-tip::after {
+        content: attr(data-tip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%);
+        min-width: 210px;
+        max-width: 280px;
+        white-space: normal;
+        background: #0f141a;
+        color: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+        z-index: 3;
+      }
+      .help-tip:hover::after,
+      .help-tip:focus-visible::after {
+        opacity: 1;
+        visibility: visible;
+      }
+      .track-inline form {
+        display: flex;
+        gap: 8px;
+      }
+      .track-inline input {
+        flex: 1;
+      }
+      .track-inline button {
+        width: auto;
+        padding: 10px 14px;
+      }
 
       footer {
         border-top: 1px solid var(--line);
@@ -873,7 +938,17 @@
         <div class="contact-panel">
           <h3 data-i18n="request_h">Request Service</h3>
           {{if .RequestSent}}
-          <div class="request-banner ok" data-i18n="request_ok">Request received. Our team will contact you soon.</div>
+          <div class="request-banner ok">
+            <strong data-i18n="request_ok_title">Request received</strong>
+            <span data-i18n="request_ok_body">Thank you for contacting us. Our team will review your request and respond as soon as possible.</span>
+          </div>
+          {{if .RequestTrack}}
+          <div class="request-banner ok">
+            <span data-i18n="track_code_label">Tracking code:</span> <strong>{{.RequestTrack}}</strong>.
+            <span class="help-tip" tabindex="0" role="img" data-i18n-tip="track_help_tip" data-tip="Este código te permite consultar el estado del trabajo: lo que estamos haciendo, lo que terminamos, el próximo paso, el trabajador asignado y la fecha esperada." aria-label="Ayuda sobre código de seguimiento" title="Este código te permite consultar el estado del trabajo">?</span>
+            <a href="/track?code={{.RequestTrack}}" data-i18n="track_view_link" style="font-weight:700; text-decoration:underline">View service status</a>
+          </div>
+          {{end}}
           {{end}}
           {{if .RequestError}}
           <div class="request-banner err">{{.RequestError}}</div>
@@ -905,6 +980,14 @@
             <button type="submit" data-i18n="f_submit">Send Request</button>
             <p class="request-note" data-i18n="f_note">Leave phone or email so we can contact you.</p>
           </form>
+
+          <div class="track-inline">
+            <p><span data-i18n="track_inline_label">¿Ya tienes un código de seguimiento?</span><span class="help-tip" tabindex="0" role="img" data-i18n-tip="track_help_tip" data-tip="Este código te permite consultar el estado del trabajo: lo que estamos haciendo, lo que terminamos, el próximo paso, el trabajador asignado y la fecha esperada." aria-label="Ayuda sobre código de seguimiento" title="Este código te permite consultar el estado del trabajo">?</span></p>
+            <form method="GET" action="/track">
+              <input name="code" placeholder="SR-XXXXXXX" data-i18n-placeholder="track_placeholder" />
+              <button type="submit" data-i18n="track_btn">Ver seguimiento</button>
+            </form>
+          </div>
         </div>
       </div>
     </section>
@@ -983,7 +1066,14 @@
           coverage_5: "Worker portal for internal operations",
           footer_text: "Electroclima Pro Services, LLC • Public website • Internal tools remain protected",
           request_h: "Request Service",
-          request_ok: "Request received. Our team will contact you soon.",
+          request_ok_title: "Request received",
+          request_ok_body: "Thank you for contacting us. Our team will review your request and respond as soon as possible.",
+          track_code_label: "Tracking code:",
+          track_view_link: "View service status",
+          track_inline_label: "Already have a tracking code?",
+          track_help_tip: "Enter this code on the tracking page to see what we are doing now, what is finished, the next step, the assigned worker, and the expected date.",
+          track_btn: "View tracking",
+          track_placeholder: "SR-XXXXXXX",
           f_name: "Name",
           f_phone: "Phone",
           f_email: "Email",
@@ -1067,7 +1157,14 @@
           coverage_5: "Portal de trabajadores para operaciones internas",
           footer_text: "Electroclima Pro Services, LLC • Sitio publico • Herramientas internas protegidas",
           request_h: "Solicitar Servicio",
-          request_ok: "Solicitud recibida. Nuestro equipo se comunicara pronto.",
+          request_ok_title: "Solicitud recibida",
+          request_ok_body: "Gracias por contactarnos. Nuestro equipo revisara su solicitud y le respondera lo antes posible.",
+          track_code_label: "Codigo de seguimiento:",
+          track_view_link: "Ver estado del servicio",
+          track_inline_label: "Ya tienes un codigo de seguimiento?",
+          track_help_tip: "Ingresa este codigo en la pagina de seguimiento para ver lo que hacemos ahora, lo que terminamos, el proximo paso, el trabajador asignado y la fecha esperada.",
+          track_btn: "Ver seguimiento",
+          track_placeholder: "SR-XXXXXXX",
           f_name: "Nombre",
           f_phone: "Telefono",
           f_email: "Correo",
@@ -1096,6 +1193,20 @@
           const key = el.getAttribute("data-i18n");
           if (dict[key]) {
             el.textContent = dict[key];
+          }
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+          const key = el.getAttribute("data-i18n-placeholder");
+          if (dict[key]) {
+            el.setAttribute("placeholder", dict[key]);
+          }
+        });
+        document.querySelectorAll("[data-i18n-tip]").forEach((el) => {
+          const key = el.getAttribute("data-i18n-tip");
+          if (dict[key]) {
+            el.setAttribute("data-tip", dict[key]);
+            el.setAttribute("aria-label", dict[key]);
+            el.setAttribute("title", dict[key]);
           }
         });
         document.documentElement.lang = lang === "es" ? "es" : "en";

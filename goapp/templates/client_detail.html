@@ -147,6 +147,25 @@
         color: #fff;
         border-color: var(--primary);
       }
+      .invoice-scroll {
+        max-height: 520px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      .invoice-scroll table {
+        margin: 0;
+      }
+      .invoice-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .list-footnote {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #666;
+      }
       @media (max-width: 700px) {
         body {
           padding: 12px;
@@ -154,9 +173,11 @@
         .panel {
           padding: 16px;
         }
+        .invoice-scroll {
+          overflow-x: auto;
+        }
         table {
           display: block;
-          overflow-x: auto;
           white-space: nowrap;
         }
       }
@@ -205,87 +226,90 @@
           >
         </div>
         {{if .Invoices}}
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th style="text-align: center">Trabajos</th>
-              <th style="text-align: right">Total</th>
-              <th style="text-align: right">Deuda</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .Invoices}}
-            <tr
-              class="invoice-row row-{{.PaymentStatus}}"
-              onclick="window.location='/invoices/{{.ID}}/edit'"
-            >
-              <td>{{formatDate .InvoiceDate}}</td>
-              <td class="center">{{.JobCount}}</td>
-              <td class="num">{{money .Total}}</td>
-              <td class="num">{{money .Debt}}</td>
-              <td onclick="event.stopPropagation()">
-                {{if $.IsAdmin}}
-                <form
-                  class="status-toggle"
-                  method="POST"
-                  action="/invoices/{{.ID}}/paid"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{$.CSRFToken}}"
-                  />
-                  <input
-                    type="hidden"
-                    name="redirect"
-                    value="/clients/{{$.Client.ID}}"
-                  />
-                  <input
-                    type="hidden"
-                    name="amount_paid"
-                    value="{{.AmountPaid}}"
-                  />
-                  <select name="payment_status" onchange="this.form.submit()">
-                    <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
-                      Sin pagar
-                    </option>
-                    <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
-                      Parcial
-                    </option>
-                    <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
-                      Pagada
-                    </option>
-                  </select>
-                </form>
-                <form
-                  class="status-toggle"
-                  method="POST"
-                  action="/invoices/{{.ID}}/add-payment"
-                  onsubmit="return submitInstallmentPayment(this)"
-                >
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{$.CSRFToken}}"
-                  />
-                  <input
-                    type="hidden"
-                    name="redirect"
-                    value="/clients/{{$.Client.ID}}"
-                  />
-                  <input type="hidden" name="amount" value="" />
-                  <button type="submit">+ Pago</button>
-                </form>
-                {{else}}
-                {{.PaymentStatus}}
-                {{end}}
-              </td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
+        <div class="invoice-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th style="text-align: center">Trabajos</th>
+                <th style="text-align: right">Total</th>
+                <th style="text-align: right">Deuda</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Invoices}}
+              <tr
+                class="invoice-row row-{{.PaymentStatus}}"
+                onclick="window.location='/invoices/{{.ID}}/edit'"
+              >
+                <td>{{formatDate .InvoiceDate}}</td>
+                <td class="center">{{.JobCount}}</td>
+                <td class="num">{{money .Total}}</td>
+                <td class="num">{{money .Debt}}</td>
+                <td onclick="event.stopPropagation()">
+                  {{if $.IsAdmin}}
+                  <form
+                    class="status-toggle"
+                    method="POST"
+                    action="/invoices/{{.ID}}/paid"
+                  >
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{$.CSRFToken}}"
+                    />
+                    <input
+                      type="hidden"
+                      name="redirect"
+                      value="/clients/{{$.Client.ID}}"
+                    />
+                    <input
+                      type="hidden"
+                      name="amount_paid"
+                      value="{{.AmountPaid}}"
+                    />
+                    <select name="payment_status" onchange="this.form.submit()">
+                      <option value="unpaid" {{if eq .PaymentStatus "unpaid"}}selected{{end}}>
+                        Sin pagar
+                      </option>
+                      <option value="partial" {{if eq .PaymentStatus "partial"}}selected{{end}}>
+                        Parcial
+                      </option>
+                      <option value="paid" {{if eq .PaymentStatus "paid"}}selected{{end}}>
+                        Pagada
+                      </option>
+                    </select>
+                  </form>
+                  <form
+                    class="status-toggle"
+                    method="POST"
+                    action="/invoices/{{.ID}}/add-payment"
+                    onsubmit="return submitInstallmentPayment(this)"
+                  >
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{$.CSRFToken}}"
+                    />
+                    <input
+                      type="hidden"
+                      name="redirect"
+                      value="/clients/{{$.Client.ID}}"
+                    />
+                    <input type="hidden" name="amount" value="" />
+                    <button type="submit">+ Pago</button>
+                  </form>
+                  {{else}}
+                  {{.PaymentStatus}}
+                  {{end}}
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        <p class="list-footnote">Mostrando {{len .Invoices}} factura(s). Usa la rueda del mouse para subir o bajar la lista.</p>
         {{else}}
         <div class="empty">Aún no hay facturas registradas para este cliente.</div>
         {{end}}
