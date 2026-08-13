@@ -1,9 +1,9 @@
 name: Deploy to VPS
 
+# Auto-deploy on push is disabled: deployments are now driven from the VPS
+# itself. Run this workflow manually from the Actions tab when needed.
 on:
-  push:
-    branches:
-      - main  # Change to 'master' if your main branch is named master
+  workflow_dispatch:
 
 jobs:
   deploy:
