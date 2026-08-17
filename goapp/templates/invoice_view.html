@@ -76,10 +76,15 @@
       }
       .email-form {
         display: inline-flex;
+        flex-direction: column;
         align-items: stretch;
         border-radius: 6px;
         overflow: hidden;
         box-shadow: 0 0 0 1px var(--border);
+      }
+      .email-form-main {
+        display: flex;
+        align-items: stretch;
       }
       .email-form input[type="email"] {
         border: none;
@@ -88,6 +93,8 @@
         line-height: 42px;
         font-size: 14px;
         font-family: inherit;
+      }
+      .email-form-main input[name="to"] {
         width: 240px;
       }
       .email-form button {
@@ -113,7 +120,8 @@
         text-align: center;
       }
       .email-form input[name="cc"] {
-        border-left: 1px solid var(--border);
+        width: 100%;
+        border-top: 1px solid var(--border);
       }
       .email-form input[name="cc"].hidden {
         display: none;
@@ -587,14 +595,17 @@
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
         <input type="hidden" name="cc_open" value="{{if .ShowCC}}1{{else}}0{{end}}" />
-        <input
-          type="email"
-          name="to"
-          value="{{.EmailTo}}"
-          placeholder="cliente@ejemplo.com"
-          required
-        />
-        <button type="button" class="cc-toggle" onclick="toggleCcField(this)">Cc</button>
+        <div class="email-form-main">
+          <input
+            type="email"
+            name="to"
+            value="{{.EmailTo}}"
+            placeholder="cliente@ejemplo.com"
+            required
+          />
+          <button type="button" class="cc-toggle" onclick="toggleCcField(this)">Cc</button>
+          <button type="submit">Enviar PDF por Correo</button>
+        </div>
         <input
           type="email"
           name="cc"
@@ -602,7 +613,6 @@
           placeholder="cc@ejemplo.com"
           class="hidden"
         />
-        <button type="submit">Enviar PDF por Correo</button>
       </form>
     </div>
 
@@ -786,8 +796,9 @@
         return true;
       }
       function toggleCcField(button) {
-        var cc = button.parentElement.querySelector('input[name="cc"]');
-        var ccOpen = button.parentElement.querySelector('input[name="cc_open"]');
+        var form = button.closest("form");
+        var cc = form.querySelector('input[name="cc"]');
+        var ccOpen = form.querySelector('input[name="cc_open"]');
         var original = cc.dataset.originalValue || "";
         if (cc.classList.contains("hidden")) {
           cc.classList.remove("hidden");

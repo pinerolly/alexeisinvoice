@@ -11,6 +11,33 @@ handle /tools/whoami* {
 reverse_proxy whoami:80
 }
 
+handle /google112e448f0ce885ae.html {
+respond "google-site-verification: google112e448f0ce885ae.html" 200
+}
+
+handle /robots.txt {
+respond "User-agent: *
+Disallow: /login
+Disallow: /app
+Disallow: /admin
+Disallow: /invoices
+Disallow: /clients
+Disallow: /account
+Disallow: /track
+
+Sitemap: https://www.electroclimapro.us/sitemap.xml" 200
+}
+
+handle /sitemap.xml {
+header Content-Type "application/xml; charset=utf-8"
+respond "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
+  <url>
+    <loc>https://www.electroclimapro.us/</loc>
+  </url>
+</urlset>" 200
+}
+
 handle {
 reverse_proxy invoiceapp:8080
 }
