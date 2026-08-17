@@ -32,6 +32,17 @@
         padding: 24px;
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.08);
       }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 14px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
       h1 {
         margin: 0 0 10px;
         color: var(--primary);
@@ -126,6 +137,11 @@
   <body>
     <div class="wrap">
       <div class="card">
+        {{if .FromWorker}}
+        <a class="back-link" href="/admin/service-requests">&larr; Volver a solicitudes de servicio</a>
+        {{else}}
+        <a class="back-link" href="/" onclick="if (window.history.length > 1) { window.history.back(); return false; }">&larr; Volver</a>
+        {{end}}
         <h1>Seguimiento de trabajo</h1>
         <p class="sub">Ingresa tu código para ver en qué estamos trabajando ahora, qué terminamos y qué sigue mañana.</p>
 

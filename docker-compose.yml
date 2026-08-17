@@ -33,6 +33,7 @@ services:
     volumes:
       - ${INVOICE_DATA_DIR:-./data/invoice}:/data
       - runtime_secrets:/run/secrets:ro
+      - ${GDRIVE_RCLONE_CONFIG_HOST:-/home/ubuntu/.config/rclone/rclone.conf}:/etc/rclone/rclone.conf:ro
     expose:
       - "8080"
     networks:

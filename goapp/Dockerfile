@@ -8,7 +8,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -p=1 -o /out/invoiceapp .
 
 # ---- Runtime stage ----
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata rclone
 COPY --from=build /out/invoiceapp /usr/local/bin/invoiceapp
 # Working directory doubles as the persisted data volume (db and json draft).
 # Runtime secrets can be mounted separately (e.g. /run/secrets/invoice.env).

@@ -257,20 +257,6 @@
         left: 8px;
         transform: scale(1.2);
       }
-      .attach-zip-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-right: 8px;
-        font-size: 12px;
-        color: #334;
-      }
-      .attach-zip-note {
-        margin-right: 10px;
-        font-size: 12px;
-        color: #556;
-        white-space: nowrap;
-      }
       .invoice {
         max-width: 850px;
         margin: auto;
@@ -547,6 +533,9 @@
     {{if .PhotoError}}
     <div class="banner error">{{.PhotoError}}</div>
     {{end}}
+    {{if .PhotoSuccess}}
+    <div class="banner success">{{.PhotoSuccess}}</div>
+    {{end}}
 
     <div class="toolbar">
       <a class="secondary" href="/clients/{{.ClientID}}">Historial de Facturas</a>
@@ -579,11 +568,6 @@
       >
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
         <input type="hidden" name="cc_open" value="{{if .ShowCC}}1{{else}}0{{end}}" />
-        <label class="attach-zip-toggle">
-          <input type="checkbox" name="attach_evidence_zip" value="1" {{if .AttachZip}}checked{{end}} />
-          Adjuntar ZIP de Fotos
-        </label>
-        <span class="attach-zip-note">El cliente recibe todas las fotos del trabajo en un ZIP.</span>
         <input
           type="email"
           name="to"
@@ -629,14 +613,12 @@
           <input type="checkbox" id="select-all-photos" onchange="toggleAllPhotos(this)" />
           Seleccionar todas
         </label>
-        <span class="photo-select-note">Selecciona fotos para descargar o eliminar.</span>
         <button
           type="submit"
           class="secondary"
-          formaction="/invoices/{{.InvoiceID}}/photos/download-selected"
-          onclick="return validateSelectedPhotos('download');"
+          formaction="/invoices/{{.InvoiceID}}/photos/send-to-drive"
         >
-          Descargar ZIP Seleccionado
+          Enviar a Google Drive
         </button>
         <button
           type="submit"
@@ -809,6 +791,55 @@
         }
       });
 
+      var PHOTO_MAX_DIMENSION = 1600;
+      var PHOTO_JPEG_QUALITY = 0.82;
+
+      function resizePhotoToJpeg(file) {
+        return new Promise(function (resolve) {
+          if (typeof window.createImageBitmap !== "function" || typeof HTMLCanvasElement === "undefined") {
+            resolve(file);
+            return;
+          }
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            var width = img.naturalWidth;
+            var height = img.naturalHeight;
+            if (!width || !height) {
+              URL.revokeObjectURL(url);
+              resolve(file);
+              return;
+            }
+            var scale = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(width, height));
+            var targetWidth = Math.max(1, Math.round(width * scale));
+            var targetHeight = Math.max(1, Math.round(height * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(
+              function (blob) {
+                if (!blob) {
+                  resolve(file);
+                  return;
+                }
+                var newName = file.name.replace(/\.[^./\\]+$/, "") + ".jpg";
+                resolve(new File([blob], newName, { type: "image/jpeg" }));
+              },
+              "image/jpeg",
+              PHOTO_JPEG_QUALITY,
+            );
+          };
+          img.onerror = function () {
+            URL.revokeObjectURL(url);
+            resolve(file);
+          };
+          img.src = url;
+        });
+      }
+
       function autoUploadPhotos(input) {
         if (!input || !input.files || input.files.length === 0) {
           return;
@@ -822,11 +853,21 @@
         }
         form.dataset.submitting = "1";
 
-        var zipCheckbox = document.querySelector('input[name="attach_evidence_zip"]');
-        if (zipCheckbox) {
-          zipCheckbox.checked = true;
-        }
-        form.submit();
+        var originalFiles = Array.prototype.slice.call(input.files);
+        Promise.all(originalFiles.map(resizePhotoToJpeg))
+          .then(function (processedFiles) {
+            if (typeof DataTransfer === "function") {
+              var dataTransfer = new DataTransfer();
+              processedFiles.forEach(function (file) {
+                dataTransfer.items.add(file);
+              });
+              input.files = dataTransfer.files;
+            }
+            form.submit();
+          })
+          .catch(function () {
+            form.submit();
+          });
       }
 
       function toggleAllPhotos(toggle) {
@@ -852,10 +893,6 @@
         var count = countSelectedPhotos();
         if (count > 0) {
           return true;
-        }
-        if (action === "download") {
-          alert("Selecciona al menos una foto para descargar.");
-          return false;
         }
         alert("Selecciona al menos una foto para eliminar.");
         return false;

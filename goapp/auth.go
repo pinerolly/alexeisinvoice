@@ -192,7 +192,8 @@ func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		_, s := getSession(r)
-		if s.role != "admin" {
+		user, err := getUserByUsername(s.username)
+		if err != nil || user.Role != "admin" {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -304,11 +305,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	setSessionCookie(w, r, token)
 
-	next := r.FormValue("next")
-	if next == "" || next == "/login" {
-		next = "/app"
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/service-requests", http.StatusSeeOther)
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -326,7 +323,11 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 // isAdmin reports whether the current request's session belongs to an admin.
 func isAdmin(r *http.Request) bool {
 	_, s := getSession(r)
-	return s != nil && s.role == "admin"
+	if s == nil {
+		return false
+	}
+	user, err := getUserByUsername(s.username)
+	return err == nil && user.Role == "admin"
 }
 
 // currentUsername returns the logged-in user's username, or "" if none.

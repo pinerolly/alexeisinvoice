@@ -426,18 +426,29 @@ func createServiceRequest(name, phone, email, serviceType, message string) (int6
 }
 
 func listServiceRequests(limit int) ([]ServiceRequest, error) {
+	return listServiceRequestsWhere("", limit)
+}
+
+func listAssignedServiceRequests(username string, limit int) ([]ServiceRequest, error) {
+	return listServiceRequestsWhere(strings.TrimSpace(username), limit)
+}
+
+func listServiceRequestsWhere(assignedUsername string, limit int) ([]ServiceRequest, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	rows, err := db.Query(
-		`SELECT id, name, phone, email, service_type, message, status,
+	query := `SELECT id, name, phone, email, service_type, message, status,
 		        assigned_username, progress_now, progress_done, progress_next,
 		        expected_date, tracking_code, updated_at, created_at
-		 FROM service_requests
-		 ORDER BY id DESC
-		 LIMIT ?`,
-		limit,
-	)
+		 FROM service_requests`
+	args := []any{}
+	if assignedUsername != "" {
+		query += " WHERE assigned_username = ?"
+		args = append(args, assignedUsername)
+	}
+	query += " ORDER BY id DESC LIMIT ?"
+	args = append(args, limit)
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

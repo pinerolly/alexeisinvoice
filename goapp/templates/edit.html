@@ -98,6 +98,10 @@
         width: 100%;
         margin-top: 10px;
       }
+      .btn-danger {
+        background: #b23b3b;
+        color: #fff;
+      }
       .job-item {
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -434,6 +438,7 @@
         <h2>Editar Factura</h2>
         <form method="POST" action="/update" id="invoiceForm">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <input type="hidden" name="currentInvoiceId" value="{{.CurrentInvoiceID}}" />
           <label for="invDate">Fecha de la Factura</label>
           <input
             type="date"
@@ -586,16 +591,30 @@
             />
           </div>
 
-          <button type="submit" name="action" value="print" class="btn-print">
-            Guardar / Imprimir / Descargar / Enviar
+          <button type="submit" name="action" value="{{if gt .CurrentInvoiceID 0}}save{{else}}print{{end}}" class="btn-print">
+            {{if gt .CurrentInvoiceID 0}}Guardar Cambios{{else}}Guardar / Imprimir / Descargar / Enviar{{end}}
           </button>
         </form>
 
+        {{if gt .CurrentInvoiceID 0}}
+        {{if .IsAdmin}}
+        <form
+          method="POST"
+          action="/invoices/{{.CurrentInvoiceID}}/delete"
+          onsubmit="return confirm('¿Eliminar esta factura permanentemente?');"
+        >
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <button type="submit" class="btn-danger" style="width: 100%; margin-top: 10px">
+            Eliminar Factura
+          </button>
+        </form>
+        {{end}}
+        {{else}}
         <form
           method="POST"
           action="/reset"
           onsubmit="
-            return confirm('¿Borrar la factura actual y empezar una nueva?');
+            return confirm('{{if gt .CurrentInvoiceID 0}}¿Empezar una nueva factura?{{else}}¿Borrar la factura actual y empezar una nueva?{{end}}');
           "
         >
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
@@ -604,9 +623,10 @@
             class="btn-secondary"
             style="width: 100%; margin-top: 10px"
           >
-            Borrar / Nueva Factura
+            {{if gt .CurrentInvoiceID 0}}Nueva Factura{{else}}Borrar / Nueva Factura{{end}}
           </button>
         </form>
+        {{end}}
       </div>
 
       <div class="invoice">

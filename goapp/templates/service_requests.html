@@ -135,7 +135,7 @@
     <div class="page">
       <div class="card">
         <h1>Solicitudes de Servicio</h1>
-        <p class="sub">Solicitudes enviadas por los clientes desde el sitio web público.</p>
+        <p class="sub">{{if .IsAdmin}}Solicitudes enviadas por los clientes desde el sitio web público.{{else}}Servicios asignados a tu usuario.{{end}}</p>
         {{if .Saved}}
         <div class="ok">Cambios guardados correctamente.</div>
         {{end}}
@@ -151,7 +151,7 @@
               <th>Servicio</th>
               <th>Mensaje</th>
               <th>Código</th>
-              <th>Asignación y Seguimiento</th>
+              <th>{{if .IsAdmin}}Asignación y Seguimiento{{else}}Mi trabajo{{end}}</th>
             </tr>
           </thead>
           <tbody>
@@ -167,10 +167,11 @@
               <td>
                 <div class="track-code">{{if $req.TrackingCode}}{{$req.TrackingCode}}{{else}}-{{end}}</div>
                 {{if $req.TrackingCode}}
-                <a href="/track?code={{$req.TrackingCode}}" target="_blank" rel="noopener">Ver cliente</a>
+                <a href="/track?code={{$req.TrackingCode}}&from=worker" target="_blank" rel="noopener">Ver cliente</a>
                 {{end}}
               </td>
               <td>
+                {{if $.IsAdmin}}
                 <form class="assign-form" method="POST" action="/admin/service-requests/{{$req.ID}}/assign">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />
                   <select name="assigned_username">
@@ -192,6 +193,11 @@
                   <input type="date" name="expected_date" value="{{$req.ExpectedDate}}" />
                   <button type="submit">Guardar</button>
                 </form>
+                {{else}}
+                <div class="status">{{$req.Status}}</div>
+                <div class="worker-progress"><strong>Ahora:</strong> {{if $req.ProgressNow}}{{$req.ProgressNow}}{{else}}Pendiente de actualización{{end}}</div>
+                <div class="worker-progress"><strong>Próximo:</strong> {{if $req.ProgressNext}}{{$req.ProgressNext}}{{else}}Por definir{{end}}</div>
+                {{end}}
               </td>
             </tr>
             {{end}}

@@ -231,7 +231,6 @@
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th style="text-align: center">Trabajos</th>
                 <th style="text-align: right">Total</th>
                 <th style="text-align: right">Deuda</th>
                 <th>Estado</th>
@@ -241,10 +240,9 @@
               {{range .Invoices}}
               <tr
                 class="invoice-row row-{{.PaymentStatus}}"
-                onclick="window.location='/invoices/{{.ID}}/edit'"
+                onclick="window.location='/invoices/{{.ID}}/view'"
               >
                 <td>{{formatDate .InvoiceDate}}</td>
-                <td class="center">{{.JobCount}}</td>
                 <td class="num">{{money .Total}}</td>
                 <td class="num">{{money .Debt}}</td>
                 <td onclick="event.stopPropagation()">

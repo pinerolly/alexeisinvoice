@@ -80,6 +80,13 @@
       tbody tr:hover {
         background: var(--light-bg);
       }
+      tbody tr.client-row {
+        cursor: pointer;
+      }
+      tbody tr.client-row:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
       tbody td.num {
         text-align: right;
         font-weight: 600;
@@ -209,7 +216,14 @@
           </thead>
           <tbody>
             {{range .Clients}}
-            <tr>
+            <tr
+              class="client-row"
+              role="link"
+              tabindex="0"
+              data-client-url="/clients/{{.ID}}"
+              onclick="window.location.href=this.dataset.clientUrl"
+              onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href=this.dataset.clientUrl; }"
+            >
               <td>
                 <a class="client-link" href="/clients/{{.ID}}">{{.Name}}</a>
               </td>
@@ -224,7 +238,7 @@
         {{end}}
 
         <div class="import-merge-card" id="invoice-import">
-          <h2>Importar Foto (integrado en Facturas)</h2>
+          <h2>Importar Foto</h2>
           <p>
             Sube la foto una sola vez aquí, al final de la página de todas las
             facturas por cliente.

@@ -101,7 +101,7 @@
   {{if .DisplayName}}<span class="current-user">{{.DisplayName}}</span>{{end}}
   <div class="links">
     <a href="/">Sitio Público</a>
-    <a href="/app">Nueva Factura</a>
+    <a href="/app?new=1">Nueva Factura</a>
     <a href="/clients">Facturas</a>
     <a href="/admin/service-requests">Solicitudes</a>
     <a href="/admin/users">Trabajadores</a>
@@ -136,7 +136,7 @@
       Buscar: "Search",
       Nombre: "Name",
       "Nombre del Cliente": "Client Name",
-      Deudas: "Open Invoices",
+      Deudas: "Invoices",
       "Deuda Total": "Total Debt",
       "No se encontraron clientes.": "No clients found.",
       "Todos los Clientes": "All Clients",
@@ -146,7 +146,11 @@
       Parcial: "Partial",
       Pagada: "Paid",
       Fecha: "Date",
+      "Fecha de la Factura": "Invoice Date",
+      FACTURA: "INVOICE",
+      "Factura #": "Invoice #",
       Trabajos: "Jobs",
+      "Trabajos / Conceptos": "Jobs / Items",
       Total: "Total",
       Deuda: "Debt",
       Estado: "Status",
@@ -154,7 +158,15 @@
       "Hora de Salida": "Time Out",
       Descripción: "Description",
       "Precio ($)": "Price ($)",
+      Precio: "Price",
+      "Descripción del Trabajo Realizado": "Description of Work Performed",
+      "Detalles del Servicio": "Service Details",
       "Editar Factura": "Edit Invoice",
+      "Guardar Cambios": "Save Changes",
+      "Eliminar Factura": "Delete Invoice",
+      Borrar: "Clear",
+      "+ Agregar Trabajo": "+ Add Work",
+      "Agregar Trabajo": "Add Work",
       "Importar campos de la factura desde una foto del teléfono": "Import invoice fields from a phone photo",
       "Volver a clientes": "Back to clients",
       "Trabajos / Conceptos": "Jobs / Items",
@@ -173,7 +185,6 @@
       "Mostrando": "Showing",
       "factura(s).": "invoice(s).",
       "Usa la rueda del mouse para subir o bajar la lista.": "Use the mouse wheel to scroll the list.",
-      "Importar Foto (integrado en Facturas)": "Import Photo (built into Invoices)",
       "Puedes cargar una foto de la factura aquí mismo. La IA extrae los datos y te envía al editor con los campos prellenados.": "You can upload an invoice photo right here. AI extracts the data and sends it to the editor pre-filled.",
       "Solicitudes de Servicio": "Service Requests",
       "Solicitudes enviadas por los clientes desde el sitio web público.": "Requests submitted by customers from the public website.",
@@ -200,10 +211,17 @@
       "Ubicación": "Location",
       Ubicacion: "Location",
       "Monto Total a Pagar": "Total Amount Due",
-      "Firma del Técnico": "Technician Signature"
+      "Firma del Técnico": "Technician Signature",
+      "Ubicación:": "Location:",
+      "¡Gracias por su preferencia!": "Thank you for your business!",
+      "Al imprimir se actualizará este registro.": "Printing will update this record."
     };
     const placeholderToEn = {
       "Buscar por nombre, teléfono o correo...": "Search by name, phone or email...",
+      "ej. Juan Pérez": "e.g. Juan Perez",
+      "ej. 786 389 3330": "e.g. 786 389 3330",
+      "ej. cliente@ejemplo.com": "e.g. client@example.com",
+      "ej. 7820 NE 1st Ave": "e.g. 7820 NE 1st Ave",
       "Describe el trabajo realizado...": "Describe work performed...",
       "Trabajo actual": "Current work",
       "Trabajo terminado": "Completed work",
