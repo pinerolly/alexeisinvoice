@@ -128,6 +128,14 @@ func initDB() error {
 	return migrateSchema()
 }
 
+// backupDatabase writes a consistent, single-file snapshot of the live
+// database to destPath, safe to copy elsewhere even while the app is running
+// (unlike copying the .db/.db-wal/.db-shm files directly).
+func backupDatabase(destPath string) error {
+	_, err := db.Exec("VACUUM INTO ?", destPath)
+	return err
+}
+
 // migrateSchema adds columns introduced after a database was first created,
 // since "CREATE TABLE IF NOT EXISTS" doesn't alter existing tables.
 func migrateSchema() error {

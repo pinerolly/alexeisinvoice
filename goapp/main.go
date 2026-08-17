@@ -1893,6 +1893,7 @@ func invoiceEditHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	hashPassword := flag.Bool("hashpassword", false, "prompt for a password and print its bcrypt hash, then exit")
 	exportPDFs := flag.String("exportpdfs", "", "export every invoice as a PDF into the given directory, then exit")
+	backupDB := flag.String("backupdb", "", "write a consistent snapshot of the database to the given file path, then exit")
 	flag.Parse()
 
 	if *hashPassword {
@@ -1916,6 +1917,17 @@ func main() {
 		}
 		defer db.Close()
 		if err := exportAllInvoicePDFs(*exportPDFs); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if *backupDB != "" {
+		if err := initDB(); err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+		if err := backupDatabase(*backupDB); err != nil {
 			log.Fatal(err)
 		}
 		return
