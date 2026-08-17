@@ -133,6 +133,25 @@
         text-transform: uppercase;
         letter-spacing: 0.6px;
       }
+      .photo-row-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      .photo-row-heading h3 {
+        margin: 0;
+      }
+      .photo-drive-link {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--primary);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .photo-drive-link:hover {
+        text-decoration: underline;
+      }
       .photo-form {
         display: flex;
         align-items: center;
@@ -588,7 +607,12 @@
     </div>
 
     <div class="photo-row">
-      <h3>Fotos de Evidencia del Trabajo</h3>
+      <div class="photo-row-heading">
+        <h3>Fotos de Evidencia del Trabajo</h3>
+        {{if .IsAdmin}}
+        <a class="photo-drive-link" href="https://drive.google.com/drive/folders/1daVu5eJI_4MEzJ1_5Otn1VKB9XA19L7p" target="_blank" rel="noopener">Google Drive ↗</a>
+        {{end}}
+      </div>
       <form
         method="POST"
         action="/invoices/{{.InvoiceID}}/photos"
