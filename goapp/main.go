@@ -441,6 +441,19 @@ func serviceRequestAssignHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/service-requests?saved=1", http.StatusSeeOther)
 }
 
+func serviceRequestDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := deleteServiceRequest(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/service-requests?saved=1", http.StatusSeeOther)
+}
+
 type WorkTrackView struct {
 	Title        string
 	Code         string
@@ -969,7 +982,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "cannot save a new invoice from this action", http.StatusBadRequest)
 			return
 		}
-		clientID, err := findOrCreateClient(data.ClientName, data.Phone, data.Email)
+		clientID, err := updateClientForInvoice(data.CurrentInvoiceID, data.ClientName, data.Phone, data.Email)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1955,6 +1968,7 @@ func main() {
 	mux.HandleFunc("POST /app/import", requireAuth(requireCSRF(requireSignature(invoiceImportSubmitHandler))))
 	mux.HandleFunc("GET /admin/service-requests", requireAuth(serviceRequestsHandler))
 	mux.HandleFunc("POST /admin/service-requests/{id}/assign", requireAdmin(requireCSRF(serviceRequestAssignHandler)))
+	mux.HandleFunc("POST /admin/service-requests/{id}/delete", requireAdmin(requireCSRF(serviceRequestDeleteHandler)))
 	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
 	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))

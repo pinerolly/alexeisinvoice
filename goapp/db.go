@@ -535,6 +535,31 @@ func updateServiceRequestWorkflow(id int64, assignedTo, status, progressNow, pro
 	return err
 }
 
+func deleteServiceRequest(id int64) error {
+	_, err := db.Exec(`DELETE FROM service_requests WHERE id = ?`, id)
+	return err
+}
+
+// updateClientForInvoice applies the edited name/phone/email to the client
+// already linked to invoiceID, correcting typos in place (unlike
+// findOrCreateClient, which only backfills missing contact fields and never
+// overwrites an existing name).
+func updateClientForInvoice(invoiceID int64, name, phone, email string) (int64, error) {
+	var clientID int64
+	if err := db.QueryRow(`SELECT client_id FROM invoices WHERE id = ?`, invoiceID).Scan(&clientID); err != nil {
+		return 0, err
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "Unnamed Client"
+	}
+	if _, err := db.Exec(`UPDATE clients SET name = ?, phone = ?, email = ? WHERE id = ?`,
+		name, normalizePhone(phone), normalizeEmail(email), clientID); err != nil {
+		return 0, err
+	}
+	return clientID, nil
+}
+
 // findOrCreateClient matches an existing client by phone, then email, then
 // case-insensitive name, filling in any missing contact details on match.
 // A new client is created if none of those match.
