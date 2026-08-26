@@ -200,9 +200,6 @@
                     <option value="done" {{if eq $req.Status "done"}}selected{{end}}>Terminada</option>
                     <option value="on_hold" {{if eq $req.Status "on_hold"}}selected{{end}}>En espera</option>
                   </select>
-                  <textarea name="progress_now" placeholder="Trabajo actual">{{$req.ProgressNow}}</textarea>
-                  <textarea name="progress_done" placeholder="Trabajo terminado">{{$req.ProgressDone}}</textarea>
-                  <textarea name="progress_next" placeholder="Próximo trabajo (mañana)">{{$req.ProgressNext}}</textarea>
                   <input type="date" name="expected_date" value="{{$req.ExpectedDate}}" />
                   <button type="submit">Guardar</button>
                 </form>

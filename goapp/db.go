@@ -309,6 +309,33 @@ func migrateSchema() error {
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_service_requests_tracking_code ON service_requests(tracking_code)`); err != nil {
 		return err
 	}
+
+	crows, err := db.Query(`PRAGMA table_info(clients)`)
+	if err != nil {
+		return err
+	}
+	clientCols := map[string]bool{}
+	for crows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue any
+		var pk int
+		if err := crows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			crows.Close()
+			return err
+		}
+		clientCols[name] = true
+	}
+	if err := crows.Err(); err != nil {
+		return err
+	}
+	crows.Close()
+	if !clientCols["notes"] {
+		if _, err := db.Exec(`ALTER TABLE clients ADD COLUMN notes TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -328,6 +355,7 @@ type Client struct {
 	Name  string
 	Phone string
 	Email string
+	Notes string
 }
 
 type ServiceRequest struct {
@@ -733,9 +761,14 @@ func getClientTotalDebt(id int64) (float64, error) {
 
 func getClient(id int64) (Client, error) {
 	var c Client
-	err := db.QueryRow(`SELECT id, name, phone, email FROM clients WHERE id = ?`, id).
-		Scan(&c.ID, &c.Name, &c.Phone, &c.Email)
+	err := db.QueryRow(`SELECT id, name, phone, email, notes FROM clients WHERE id = ?`, id).
+		Scan(&c.ID, &c.Name, &c.Phone, &c.Email, &c.Notes)
 	return c, err
+}
+
+func updateClientNotes(id int64, notes string) error {
+	_, err := db.Exec(`UPDATE clients SET notes = ? WHERE id = ?`, notes, id)
+	return err
 }
 
 func getClientLifetimeTotal(id int64) (float64, error) {
