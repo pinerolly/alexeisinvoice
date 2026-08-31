@@ -183,6 +183,17 @@
         {{if .Saved}}
         <div class="ok">Cambios guardados correctamente.</div>
         {{end}}
+        {{if and .IsAdmin .Requests}}
+        <form
+          method="POST"
+          action="/admin/service-requests/delete-all"
+          onsubmit="return confirm('¿Eliminar TODAS las solicitudes de servicio ({{.TotalCount}} en total) de forma permanente? Esto no se puede deshacer.');"
+          style="margin-bottom: 12px"
+        >
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+          <button type="submit" class="delete-btn">Eliminar Todas ({{.TotalCount}})</button>
+        </form>
+        {{end}}
         {{if .Requests}}
         <table>
           <thead>

@@ -278,6 +278,94 @@ type AIExtractedInvoice struct {
 	AmountPaid    float64               `json:"amountPaid"`
 }
 
+// ---- Anti-bot protection for the public service-request form ----
+//
+// Layered defense against the scripted spam that has been hitting
+// /service-request directly (never loading the page, so the honeypot field
+// alone doesn't stop it):
+//  1. A one-time server-issued token, required on submit and rejected if
+//     missing/unknown/expired/reused. A script that never GETs the page
+//     never gets a valid token.
+//  2. A minimum dwell time between issuing the token and the submit,
+//     rejecting instant submits no human could produce.
+//  3. A simple per-IP rate limit, independent of the token, as a backstop
+//     against any bot that does fetch a token each time.
+
+var (
+	formTokenMu sync.Mutex
+	formTokens  = map[string]time.Time{}
+
+	requestRateMu   sync.Mutex
+	requestRateByIP = map[string][]time.Time{}
+)
+
+const (
+	formTokenMinAge = 3 * time.Second
+	formTokenMaxAge = 2 * time.Hour
+	requestRateMax  = 3
+	requestRateWin  = 10 * time.Minute
+)
+
+func issueFormToken() string {
+	token, err := generateToken()
+	if err != nil {
+		// Fall back to a timestamp-based token; still single-use and
+		// dwell-time checked, just less unguessable.
+		token = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	formTokenMu.Lock()
+	defer formTokenMu.Unlock()
+	now := time.Now()
+	for t, issued := range formTokens {
+		if now.Sub(issued) > formTokenMaxAge {
+			delete(formTokens, t)
+		}
+	}
+	formTokens[token] = now
+	return token
+}
+
+// consumeFormToken validates and deletes a token in one step, so it can
+// only ever be used once.
+func consumeFormToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	formTokenMu.Lock()
+	defer formTokenMu.Unlock()
+	issued, ok := formTokens[token]
+	if !ok {
+		return false
+	}
+	delete(formTokens, token)
+	age := time.Since(issued)
+	return age >= formTokenMinAge && age <= formTokenMaxAge
+}
+
+// allowRequestFromIP applies a simple sliding-window rate limit, independent
+// of the form token, as a backstop.
+func allowRequestFromIP(ip string) bool {
+	if ip == "" {
+		return true
+	}
+	requestRateMu.Lock()
+	defer requestRateMu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-requestRateWin)
+	kept := requestRateByIP[ip][:0]
+	for _, t := range requestRateByIP[ip] {
+		if t.After(cutoff) {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) >= requestRateMax {
+		requestRateByIP[ip] = kept
+		return false
+	}
+	requestRateByIP[ip] = append(kept, now)
+	return true
+}
+
 type PublicPageView struct {
 	Title          string
 	RequestSent    bool
@@ -288,6 +376,7 @@ type PublicPageView struct {
 	RequestEmail   string
 	RequestService string
 	RequestMessage string
+	FormToken      string
 }
 
 func publicHandler(w http.ResponseWriter, r *http.Request) {
@@ -299,6 +388,7 @@ func publicHandler(w http.ResponseWriter, r *http.Request) {
 		RequestName:    r.URL.Query().Get("name"),
 		RequestPhone:   r.URL.Query().Get("phone"),
 		RequestEmail:   r.URL.Query().Get("email"),
+		FormToken:      issueFormToken(),
 		RequestService: r.URL.Query().Get("service"),
 		RequestMessage: r.URL.Query().Get("message"),
 	}
@@ -318,6 +408,18 @@ func serviceRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Honeypot: bots often fill hidden fields; humans do not.
 	if strings.TrimSpace(r.FormValue("website")) != "" {
+		http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+		return
+	}
+	// Require a token issued when the page was actually loaded, held for at
+	// least a couple seconds — defeats scripts that POST here directly
+	// without ever fetching the form. Failures look identical to success so
+	// bots get no useful signal to adapt to.
+	if !consumeFormToken(r.FormValue("form_token")) {
+		http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+		return
+	}
+	if !allowRequestFromIP(clientIP(r)) {
 		http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
 		return
 	}
@@ -369,6 +471,7 @@ func serviceRequestHandler(w http.ResponseWriter, r *http.Request) {
 type ServiceRequestsPageView struct {
 	Title       string
 	Requests    []ServiceRequest
+	TotalCount  int
 	Workers     []User
 	Saved       bool
 	CSRFToken   string
@@ -403,9 +506,16 @@ func serviceRequestsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	totalCount := len(reqs)
+	if admin {
+		if n, err := countServiceRequests(); err == nil {
+			totalCount = n
+		}
+	}
 	view := ServiceRequestsPageView{
 		Title:       "Service Requests",
 		Requests:    reqs,
+		TotalCount:  totalCount,
 		Workers:     users,
 		Saved:       r.URL.Query().Get("saved") == "1",
 		CSRFToken:   currentCSRFToken(r),
@@ -448,6 +558,14 @@ func serviceRequestDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := deleteServiceRequest(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/admin/service-requests?saved=1", http.StatusSeeOther)
+}
+
+func serviceRequestDeleteAllHandler(w http.ResponseWriter, r *http.Request) {
+	if err := deleteAllServiceRequests(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -1982,6 +2100,7 @@ func main() {
 	mux.HandleFunc("GET /admin/service-requests", requireAuth(serviceRequestsHandler))
 	mux.HandleFunc("POST /admin/service-requests/{id}/assign", requireAdmin(requireCSRF(serviceRequestAssignHandler)))
 	mux.HandleFunc("POST /admin/service-requests/{id}/delete", requireAdmin(requireCSRF(serviceRequestDeleteHandler)))
+	mux.HandleFunc("POST /admin/service-requests/delete-all", requireAdmin(requireCSRF(serviceRequestDeleteAllHandler)))
 	mux.HandleFunc("POST /update", requireCSRF(requireSignature(updateHandler)))
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
 	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))

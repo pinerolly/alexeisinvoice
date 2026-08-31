@@ -469,6 +469,12 @@ func listAssignedServiceRequests(username string, limit int) ([]ServiceRequest, 
 	return listServiceRequestsWhere(strings.TrimSpace(username), limit)
 }
 
+func countServiceRequests() (int, error) {
+	var n int
+	err := db.QueryRow(`SELECT COUNT(*) FROM service_requests`).Scan(&n)
+	return n, err
+}
+
 func listServiceRequestsWhere(assignedUsername string, limit int) ([]ServiceRequest, error) {
 	if limit <= 0 {
 		limit = 100
@@ -565,6 +571,11 @@ func updateServiceRequestWorkflow(id int64, assignedTo, status, progressNow, pro
 
 func deleteServiceRequest(id int64) error {
 	_, err := db.Exec(`DELETE FROM service_requests WHERE id = ?`, id)
+	return err
+}
+
+func deleteAllServiceRequests() error {
+	_, err := db.Exec(`DELETE FROM service_requests`)
 	return err
 }
 

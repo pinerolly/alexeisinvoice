@@ -977,6 +977,7 @@
             <textarea id="req-message" name="message">{{.RequestMessage}}</textarea>
 
             <input class="hp" name="website" autocomplete="off" tabindex="-1" />
+            <input type="hidden" name="form_token" value="{{.FormToken}}" />
             <button type="submit" data-i18n="f_submit">Send Request</button>
             <p class="request-note" data-i18n="f_note">Leave phone or email so we can contact you.</p>
           </form>
