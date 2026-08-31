@@ -47,15 +47,50 @@
       }
       table {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
       }
       th,
       td {
         border-bottom: 1px solid var(--border);
-        padding: 10px;
+        padding: 8px 10px;
         text-align: left;
         vertical-align: top;
         font-size: 13px;
+        overflow-wrap: break-word;
+      }
+      .col-date {
+        width: 9%;
+      }
+      .col-name {
+        width: 11%;
+      }
+      .col-phone {
+        width: 9%;
+      }
+      .col-email {
+        width: 12%;
+      }
+      .col-service {
+        width: 8%;
+      }
+      .col-message {
+        width: 20%;
+      }
+      .col-code {
+        width: 9%;
+      }
+      .col-assign {
+        width: 16%;
+      }
+      .col-delete {
+        width: 6%;
+      }
+      .req-id {
+        display: block;
+        margin-top: 2px;
+        font-size: 11px;
+        color: #8a97a2;
       }
       th {
         background: #f4f8fb;
@@ -67,7 +102,6 @@
       }
       .msg {
         white-space: pre-wrap;
-        max-width: 420px;
       }
       .status {
         display: inline-block;
@@ -153,37 +187,35 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Fecha</th>
-              <th>Nombre</th>
-              <th>Teléfono</th>
-              <th>Correo</th>
-              <th>Servicio</th>
-              <th>Mensaje</th>
-              <th>Código</th>
-              <th>{{if .IsAdmin}}Asignación y Seguimiento{{else}}Mi trabajo{{end}}</th>
+              <th class="col-date">Fecha</th>
+              <th class="col-name">Nombre</th>
+              <th class="col-phone">Teléfono</th>
+              <th class="col-email">Correo</th>
+              <th class="col-service">Servicio</th>
+              <th class="col-message">Mensaje</th>
+              <th class="col-code">Código</th>
+              <th class="col-assign">{{if .IsAdmin}}Asignación y Seguimiento{{else}}Mi trabajo{{end}}</th>
               {{if .IsAdmin}}
-              <th></th>
+              <th class="col-delete"></th>
               {{end}}
             </tr>
           </thead>
           <tbody>
             {{range $req := .Requests}}
             <tr>
-              <td>#{{$req.ID}}</td>
-              <td>{{formatTS $req.CreatedAt}}</td>
-              <td>{{$req.Name}}</td>
-              <td>{{if $req.Phone}}{{$req.Phone}}{{else}}-{{end}}</td>
-              <td>{{if $req.Email}}{{$req.Email}}{{else}}-{{end}}</td>
-              <td>{{if $req.ServiceType}}{{$req.ServiceType}}{{else}}General{{end}}</td>
-              <td class="msg">{{if $req.Message}}{{$req.Message}}{{else}}-{{end}}</td>
-              <td>
+              <td class="col-date">{{formatTS $req.CreatedAt}}<span class="req-id" title="ID interno de la solicitud">#{{$req.ID}}</span></td>
+              <td class="col-name">{{$req.Name}}</td>
+              <td class="col-phone">{{if $req.Phone}}{{$req.Phone}}{{else}}-{{end}}</td>
+              <td class="col-email">{{if $req.Email}}{{$req.Email}}{{else}}-{{end}}</td>
+              <td class="col-service">{{if $req.ServiceType}}{{$req.ServiceType}}{{else}}General{{end}}</td>
+              <td class="col-message msg">{{if $req.Message}}{{$req.Message}}{{else}}-{{end}}</td>
+              <td class="col-code">
                 <div class="track-code">{{if $req.TrackingCode}}{{$req.TrackingCode}}{{else}}-{{end}}</div>
                 {{if $req.TrackingCode}}
                 <a href="/track?code={{$req.TrackingCode}}&from=worker" target="_blank" rel="noopener">Ver cliente</a>
                 {{end}}
               </td>
-              <td>
+              <td class="col-assign">
                 {{if $.IsAdmin}}
                 <form class="assign-form" method="POST" action="/admin/service-requests/{{$req.ID}}/assign">
                   <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />
@@ -210,7 +242,7 @@
                 {{end}}
               </td>
               {{if $.IsAdmin}}
-              <td>
+              <td class="col-delete">
                 <form
                   method="POST"
                   action="/admin/service-requests/{{$req.ID}}/delete"
