@@ -62,7 +62,19 @@ func generateToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// clientIP returns the real visitor IP. The app always sits behind Caddy's
+// reverse proxy (the only public entry point), so r.RemoteAddr is Caddy's
+// own container IP for every request. Caddy appends the real peer IP it
+// observed to X-Forwarded-For by default (after any value the client sent),
+// so the LAST entry is the one Caddy itself vouches for; earlier entries
+// could be spoofed by the client and must not be trusted.
 func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		if last := strings.TrimSpace(parts[len(parts)-1]); last != "" {
+			return last
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

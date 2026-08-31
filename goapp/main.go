@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -306,6 +307,16 @@ const (
 	requestRateWin  = 10 * time.Minute
 )
 
+// containsCyrillic reports whether s has any Cyrillic-script letters.
+func containsCyrillic(s string) bool {
+	for _, r := range s {
+		if unicode.Is(unicode.Cyrillic, r) {
+			return true
+		}
+	}
+	return false
+}
+
 func issueFormToken() string {
 	token, err := generateToken()
 	if err != nil {
@@ -429,6 +440,16 @@ func serviceRequestHandler(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.FormValue("email"))
 	serviceType := strings.TrimSpace(r.FormValue("service_type"))
 	message := strings.TrimSpace(r.FormValue("message"))
+
+	// This is a Spanish/English-speaking Miami HVAC business; a wave of
+	// Cyrillic-script spam (fake marketplace prize notifications) has been
+	// hitting this form even past the checks above. A real customer here
+	// submitting in Cyrillic is effectively impossible, so reject it the
+	// same way as any other bot: a fake success, no signal given.
+	if containsCyrillic(name) || containsCyrillic(message) {
+		http.Redirect(w, r, "/?request=1#contact", http.StatusSeeOther)
+		return
+	}
 
 	q := url.Values{}
 	q.Set("name", name)
