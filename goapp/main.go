@@ -259,6 +259,7 @@ type EditPageView struct {
 	DisplayName                string
 	TechnicianSignaturePreview string
 	ImportNotice               string
+	Clients                    []Client
 }
 
 type AIExtractedLineItem struct {
@@ -660,6 +661,11 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("imported") == "1" {
 		importNotice = "Invoice fields were pre-filled from photo. Please review and adjust before printing."
 	}
+	clients, err := listAllClientsBasic()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	mu.Lock()
 	view := EditPageView{
 		InvoiceData:                data,
@@ -669,6 +675,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		DisplayName:                currentDisplayName(r),
 		TechnicianSignaturePreview: technician.Signature,
 		ImportNotice:               importNotice,
+		Clients:                    clients,
 	}
 	mu.Unlock()
 	if err := mustTemplate("edit.html").Execute(w, view); err != nil {

@@ -454,7 +454,15 @@
             name="clientName"
             value="{{.ClientName}}"
             placeholder="ej. Juan Pérez"
+            list="existingClients"
+            autocomplete="off"
+            onchange="fillFromExistingClient(this.value)"
           />
+          <datalist id="existingClients">
+            {{range .Clients}}
+            <option value="{{.Name}}"></option>
+            {{end}}
+          </datalist>
 
           <label for="phone">Teléfono</label>
           <input
@@ -737,6 +745,30 @@
     </div>
 
     <script>
+      var EXISTING_CLIENTS = {
+        {{range .Clients}}
+        "{{.Name}}": { phone: "{{.Phone}}", email: "{{.Email}}" },
+        {{end}}
+      };
+
+      // Selecting an existing client from the datalist also fills in their
+      // phone/email, so re-typing an existing client's name doesn't risk a
+      // typo splitting them into a second, duplicate client record.
+      function fillFromExistingClient(name) {
+        var match = EXISTING_CLIENTS[name];
+        if (!match) {
+          return;
+        }
+        var phone = document.getElementById("phone");
+        var email = document.getElementById("email");
+        if (phone && !phone.value.trim() && match.phone) {
+          phone.value = match.phone;
+        }
+        if (email && !email.value.trim() && match.email) {
+          email.value = match.email;
+        }
+      }
+
       function collapseJob(item) {
         const textarea = item.querySelector(".job-fields textarea");
         const price = item.querySelector('.job-fields input[name="price"]');

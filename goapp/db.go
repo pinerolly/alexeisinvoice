@@ -770,6 +770,25 @@ func getClientTotalDebt(id int64) (float64, error) {
 	return debt, err
 }
 
+// listAllClientsBasic returns every client's id/name/phone/email, ordered by
+// name, for populating the client-name autocomplete on the invoice editor.
+func listAllClientsBasic() ([]Client, error) {
+	rows, err := db.Query(`SELECT id, name, phone, email FROM clients ORDER BY name COLLATE NOCASE`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Client
+	for rows.Next() {
+		var c Client
+		if err := rows.Scan(&c.ID, &c.Name, &c.Phone, &c.Email); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 func getClient(id int64) (Client, error) {
 	var c Client
 	err := db.QueryRow(`SELECT id, name, phone, email, notes FROM clients WHERE id = ?`, id).
