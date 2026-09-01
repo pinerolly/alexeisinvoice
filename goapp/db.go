@@ -777,8 +777,17 @@ func getClient(id int64) (Client, error) {
 	return c, err
 }
 
-func updateClientNotes(id int64, notes string) error {
-	_, err := db.Exec(`UPDATE clients SET notes = ? WHERE id = ?`, notes, id)
+// updateClient applies edits made directly on the client detail page: the
+// name/phone/email a client was created with aren't fixed forever (a wrong
+// spelling, a changed number) — this corrects them in place, same as
+// updateClientForInvoice does when editing from an invoice.
+func updateClient(id int64, name, phone, email, notes string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "Unnamed Client"
+	}
+	_, err := db.Exec(`UPDATE clients SET name = ?, phone = ?, email = ?, notes = ? WHERE id = ?`,
+		name, normalizePhone(phone), normalizeEmail(email), notes, id)
 	return err
 }
 

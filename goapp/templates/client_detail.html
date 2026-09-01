@@ -55,16 +55,31 @@
         color: var(--primary);
         margin-bottom: 6px;
       }
-      .notes-section textarea {
+      .notes-section textarea,
+      .notes-section input[type="text"],
+      .notes-section input[type="email"] {
         width: 100%;
-        min-height: 80px;
         padding: 10px;
         border: 1px solid var(--border);
         border-radius: 6px;
         font-family: inherit;
         font-size: 14px;
-        resize: vertical;
         box-sizing: border-box;
+      }
+      .notes-section textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+      .client-edit-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      @media (max-width: 640px) {
+        .client-edit-grid {
+          grid-template-columns: 1fr;
+        }
       }
       .notes-section button {
         margin-top: 8px;
@@ -224,20 +239,29 @@
         <a class="back-link" href="/clients">&larr; Todos los Clientes</a>
         <h1 style="margin-top: 10px">{{.Client.Name}}</h1>
         <div class="contact-info">
-          {{if .Client.Phone}}
-          <p>Teléfono: {{.Client.Phone}}</p>
-          {{end}} {{if .Client.Email}}
-          <p>Correo: {{.Client.Email}}</p>
-          {{end}}
           <p>Total Histórico: {{money .LifetimeTotal}}</p>
           <p>Deuda Total: {{money .TotalDebt}}</p>
         </div>
         <div class="notes-section">
-          <form method="POST" action="/clients/{{.Client.ID}}/notes">
+          <form method="POST" action="/clients/{{.Client.ID}}/update">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+            <div class="client-edit-grid">
+              <div>
+                <label for="clientName">Nombre</label>
+                <input type="text" id="clientName" name="name" value="{{.Client.Name}}" required />
+              </div>
+              <div>
+                <label for="clientPhone">Teléfono</label>
+                <input type="text" id="clientPhone" name="phone" value="{{.Client.Phone}}" placeholder="ej. 786 389 3330" />
+              </div>
+              <div>
+                <label for="clientEmail">Correo</label>
+                <input type="email" id="clientEmail" name="email" value="{{.Client.Email}}" placeholder="ej. cliente@ejemplo.com" />
+              </div>
+            </div>
             <label for="clientNotes">Notas</label>
             <textarea id="clientNotes" name="notes" placeholder="Notas sobre este cliente: cómo lo conseguiste, cosas ya hechas, recordatorios...">{{.Client.Notes}}</textarea>
-            <button type="submit">Guardar Notas</button>
+            <button type="submit">Guardar Cambios</button>
           </form>
         </div>
       </div>

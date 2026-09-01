@@ -1304,13 +1304,17 @@ func clientDetailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func clientNotesHandler(w http.ResponseWriter, r *http.Request) {
+func clientUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	if err := updateClientNotes(id, r.FormValue("notes")); err != nil {
+	name := r.FormValue("name")
+	phone := r.FormValue("phone")
+	email := r.FormValue("email")
+	notes := r.FormValue("notes")
+	if err := updateClient(id, name, phone, email, notes); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -2126,7 +2130,7 @@ func main() {
 	mux.HandleFunc("POST /reset", requireCSRF(requireSignature(resetHandler)))
 	mux.HandleFunc("GET /clients", requireAuth(requireSignature(clientsListHandler)))
 	mux.HandleFunc("GET /clients/{id}", requireAuth(requireSignature(clientDetailHandler)))
-	mux.HandleFunc("POST /clients/{id}/notes", requireCSRF(requireSignature(clientNotesHandler)))
+	mux.HandleFunc("POST /clients/{id}/update", requireCSRF(requireSignature(clientUpdateHandler)))
 	mux.HandleFunc("GET /invoices/{id}/view", requireAuth(requireSignature(invoiceViewHandler)))
 	mux.HandleFunc("GET /invoices/{id}/download", requireAuth(requireSignature(invoiceDownloadHandler)))
 	mux.HandleFunc("POST /invoices/{id}/email", requireCSRF(requireSignature(invoiceEmailHandler)))
