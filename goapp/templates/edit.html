@@ -69,6 +69,46 @@
         overflow: hidden;
         min-height: 38px;
       }
+      .client-autocomplete {
+        position: relative;
+      }
+      .client-suggestions {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        margin-top: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .client-suggestions.open {
+        display: block;
+      }
+      .client-suggestion-item {
+        padding: 10px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+      }
+      .client-suggestion-item:last-child {
+        border-bottom: none;
+      }
+      .client-suggestion-item:hover,
+      .client-suggestion-item.active {
+        background: #f0f5fa;
+      }
+      .client-suggestion-empty {
+        padding: 10px 12px;
+        font-size: 13px;
+        color: #888;
+      }
       .btn-row {
         display: flex;
         gap: 10px;
@@ -448,21 +488,20 @@
           />
 
           <label for="clientName">Nombre del Cliente</label>
-          <input
-            type="text"
-            id="clientName"
-            name="clientName"
-            value="{{.ClientName}}"
-            placeholder="ej. Juan Pérez"
-            list="existingClients"
-            autocomplete="off"
-            onchange="fillFromExistingClient(this.value)"
-          />
-          <datalist id="existingClients">
-            {{range .Clients}}
-            <option value="{{.Name}}"></option>
-            {{end}}
-          </datalist>
+          <div class="client-autocomplete">
+            <input
+              type="text"
+              id="clientName"
+              name="clientName"
+              value="{{.ClientName}}"
+              placeholder="ej. Juan Pérez"
+              autocomplete="off"
+              onfocus="showClientSuggestions()"
+              oninput="showClientSuggestions()"
+              onblur="hideClientSuggestionsDelayed()"
+            />
+            <div id="clientSuggestions" class="client-suggestions"></div>
+          </div>
 
           <label for="phone">Teléfono</label>
           <input
@@ -751,9 +790,9 @@
         {{end}}
       };
 
-      // Selecting an existing client from the datalist also fills in their
-      // phone/email, so re-typing an existing client's name doesn't risk a
-      // typo splitting them into a second, duplicate client record.
+      // Selecting an existing client also fills in their phone/email, so
+      // re-typing an existing client's name doesn't risk a typo splitting
+      // them into a second, duplicate client record.
       function fillFromExistingClient(name) {
         var match = EXISTING_CLIENTS[name];
         if (!match) {
@@ -767,6 +806,53 @@
         if (email && !email.value.trim() && match.email) {
           email.value = match.email;
         }
+      }
+
+      // Native <datalist> suggestions don't show on iOS Safari at all, so
+      // this dropdown is built by hand to work the same on every device.
+      var ALL_CLIENT_NAMES = Object.keys(EXISTING_CLIENTS);
+
+      function selectClientSuggestion(name) {
+        var input = document.getElementById("clientName");
+        input.value = name;
+        fillFromExistingClient(name);
+        var box = document.getElementById("clientSuggestions");
+        box.classList.remove("open");
+      }
+
+      function showClientSuggestions() {
+        var input = document.getElementById("clientName");
+        var box = document.getElementById("clientSuggestions");
+        var query = input.value.trim().toLowerCase();
+        var matches = ALL_CLIENT_NAMES.filter(function (name) {
+          return query === "" || name.toLowerCase().indexOf(query) !== -1;
+        });
+        box.innerHTML = "";
+        if (matches.length === 0) {
+          box.classList.remove("open");
+          return;
+        }
+        matches.forEach(function (name) {
+          var item = document.createElement("div");
+          item.className = "client-suggestion-item";
+          item.textContent = name;
+          // Use touchstart/mousedown (fires before the input's blur) so a
+          // tap registers the selection before the dropdown gets hidden.
+          var pick = function (e) {
+            e.preventDefault();
+            selectClientSuggestion(name);
+          };
+          item.addEventListener("touchstart", pick, { passive: false });
+          item.addEventListener("mousedown", pick);
+          box.appendChild(item);
+        });
+        box.classList.add("open");
+      }
+
+      function hideClientSuggestionsDelayed() {
+        setTimeout(function () {
+          document.getElementById("clientSuggestions").classList.remove("open");
+        }, 200);
       }
 
       function collapseJob(item) {
